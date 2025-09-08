@@ -11,7 +11,6 @@ import "react-toastify/dist/ReactToastify.css";
 import AiLearningStudio from "./sections/AiLearningStudio";
 import TranslatorSection from "./sections/TranslatorSection";
 import FlashCardSection from "./sections/FlashCardSection";
-import AskAnythingSection from "./sections/AskAnythingSection";
 
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
@@ -26,6 +25,7 @@ root.render(
       <Route path="/ai-learning" element={<AiLearningStudio />} />
      <Route path="/translator" element={<TranslatorSection />} />
      <Route path="/flashcards" element={<FlashCardSection />} />
+     
      
 
       {/* keep /tutor route for later if you add it */}
