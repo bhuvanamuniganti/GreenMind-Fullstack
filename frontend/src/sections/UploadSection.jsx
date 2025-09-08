@@ -1,7 +1,7 @@
 import { useState } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
-
+import API_BASE from "../api";
 export default function UploadSection({ setMe }) {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -19,7 +19,7 @@ export default function UploadSection({ setMe }) {
     try {
       setUploading(true);
       setError("");
-      const res = await axios.post("http://localhost:4000/api/upload", formData, {
+      const res = await axios.post(`${API_BASE}/api/upload`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
         withCredentials: true,
       });
