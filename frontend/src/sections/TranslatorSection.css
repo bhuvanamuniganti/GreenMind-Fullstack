@@ -1,0 +1,174 @@
+/* TranslatorSection.css - styles for editable area, overlay image, animated buttons */
+
+.translator-container {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px;
+  background: transparent;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+  position: relative;
+}
+
+/* TITLE */
+.translator-title {
+  margin: 0 0 12px;
+  font-size: 20px;
+}
+
+/* Editable input wrapper */
+.editable-wrapper {
+  position: relative;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 12px;
+  min-height: 140px; /* slightly taller to give room for preview */
+  overflow: visible; /* allow overlay to be visible inside */
+  box-sizing: border-box;
+}
+
+/* textarea inside wrapper */
+.translator-textarea {
+  width: 100%;
+  min-height: 88px;
+  max-height: 240px;
+  overflow-y: auto;
+  outline: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 15px;
+  color: #0b2d16;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  padding: 10px;
+  background: transparent;
+  z-index: 2;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+/* IMAGE overlay inside editable area, positioned bottom-left */
+.image-overlay {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: inline-block;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.95);
+  padding: 6px;
+  box-shadow: 0 6px 18px rgba(2,55,20,0.06);
+  align-items: center;
+  z-index: 6;
+}
+
+/* preview image inside overlay */
+.image-overlay img {
+  display: block;
+  max-width: 140px;
+  max-height: 90px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+/* close button overlapping the small image (top-right visually) */
+.img-close {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 13px;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+  z-index: 8;
+}
+
+/* Controls row: keep controls in one line on wide screens, wrap on small */
+.controls-row {
+  margin-top: 12px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: nowrap;
+  flex-wrap: wrap; /* allow wrapping when necessary */
+}
+
+/* Base button styles (used by AnimatedButton) */
+.translator-btn {
+  background: linear-gradient(90deg,#0e682f,#1f8a46);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(2,55,20,0.08);
+  transition: transform .14s ease, box-shadow .14s ease, opacity .12s ease, background .12s;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* variant styles */
+.translator-btn.secondary { background: linear-gradient(90deg,#139f31,#7dcb85); color:#082b18; }
+.translator-btn.danger { background: linear-gradient(90deg,#ff5e5e,#ff7b7b); color:white; }
+.translator-btn.download { background: linear-gradient(90deg,#4c6ef5,#7c9cff); }
+
+/* pressed / animated state (added class by component) */
+.translator-btn.anim {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 12px 28px rgba(2,55,20,0.12);
+}
+
+/* :active fallback for quick tactile feedback */
+.translator-btn:active {
+  transform: translateY(0) scale(0.99);
+}
+
+/* disabled state */
+.translator-btn[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* translator output blocks */
+.translator-output {
+  margin-top: 14px;
+  padding: 12px;
+  background: #fbfff9;
+  border-radius: 10px;
+  border: 1px solid rgba(14,104,47,0.04);
+}
+.text-block { white-space: pre-wrap; color: #062e18; }
+
+/* audio row */
+.audio-row { margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+
+/* language selector */
+.translator-controls { margin-top: 0; display:flex; gap:12px; align-items:center; }
+.translator-label { font-weight:700; color:#0b2d16; }
+.translator-select { padding:6px 8px; border-radius:6px; border:1px solid #d1d5db; }
+
+/* small responsive adjustments */
+@media (max-width:920px) {
+  .controls-row { gap: 10px; }
+  .image-overlay img { max-width: 120px; max-height: 90px; }
+  .image-overlay { left: 10px; bottom: 10px; }
+}
+
+@media (max-width:600px) {
+  .image-overlay img { max-width: 110px; max-height:70px; }
+  .translator-btn { padding: 8px 10px; font-size:14px; }
+  .editable-wrapper { padding:10px; min-height: 120px; }
+  .controls-row { gap: 8px; }
+}

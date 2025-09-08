@@ -1,26 +1,47 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./App.css";
 
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-
-
+import HowItWorks from "./sections/HowItWorks";
+import WhyChooseUs from "./sections/WhyChooseUs";
+import Values from "./sections/Values";
+import Featured from "./sections/Featured";
+import FAQ from "./sections/FAQ";
+import SuccessStories from "./sections/SuccessStories";
 /* ---------------- Data ---------------- */
 const NAV_TOP = [
-  { id: "how", label: "How it works", icon: "📌", href: "#how" },
-  { id: "explore", label: "Explore", icon: "🧭", href: "#explore" },
-  { id: "tutor", label: "AI Tutor", icon: "🤖", href: "/tutor" }, // link added
+  { id: "how", label: "How it works", icon: "📌", href: "#how" }
+
 ];
 
-const ITEMS = [
-  { name: "Math Textbook (Grade 10)", pts: 12, condition: "Very Good", icon: "📘" },
-  { name: "Scientific Calculator", pts: 8, condition: "Good", icon: "🧮" },
-  { name: "Backpack (Teen)", pts: 9, condition: "Good", icon: "🎒" },
-  { name: "English Guide", pts: 7, condition: "Very Good", icon: "📗" },
-];
+
+
+/* ---------------- Inline button styles (only inline so App.css is untouched) ---------------- */
+const primaryBtnInline = {
+  background: "linear-gradient(135deg,#ff8a00,#ff5e00)", // orange gradient
+  border: "none",
+  color: "#fff",
+  padding: "10px 14px",
+  borderRadius: "999px",
+  fontWeight: 900,
+  cursor: "pointer",
+};
+
+
+
+const ghostBtnInline = {
+  background: "Darkgreen",
+  border: "1px solid rgba(14,104,47,.9)",
+  color: "#bbc3beff",
+  padding: "10px 14px",
+  borderRadius: "999px",
+  fontWeight: 900,
+  cursor: "pointer",
+};
 
 /* ---------------- Header ---------------- */
-function Header({openAuth}) {
+function Header({ openAuth }) {
   const [lang, setLang] = useState("en");
   const [notice, setNotice] = useState("");
 
@@ -35,10 +56,8 @@ function Header({openAuth}) {
   return (
     <header className="header" role="banner">
       <div className="container header-row">
-        {/* Brand updated */}
-        <div className="brand" title="GreenMindAI"> 🌳 GreenMindAI</div>
+        <div className="brand" title="GreenMindAI" style = {{marginLeft:"2px"}}>GreenMindAI🌳🤖</div>
 
-        {/* center nav (desktop) */}
         <nav className="nav" aria-label="Main">
           {NAV_TOP.map((n) => (
             <a key={n.id} className="menu-chip" href={n.href}>
@@ -48,28 +67,30 @@ function Header({openAuth}) {
           ))}
         </nav>
 
-        {/* right actions */}
         <div className="actions">
-          {/* compact language select */}
-          <select id="lang" className="lang-select" value={lang} onChange={onLangChange}>
+          <select id="lang" className="lang-select" value={lang} onChange={onLangChange} style={{backgroundColor:"white"}}>
             <option value="en">English</option>
             <option value="te">తెలుగు</option>
             <option value="hi">हिंदी</option>
           </select>
 
-          {/* auth links (kept as one compact button, goes to /register; login as link) */}
-          {/* before: <a className="btn primary" href="/register">Get Started</a> */}
-<button className="btn primary sm-only-compact nav-auth" onClick={() => openAuth("register")}>
-  Get Started
-</button>
-<button className="btn ghost sm-only-compact nav-auth" onClick={() => openAuth("login")}>
-  Login
-</button>
-
+          <button
+            className="btn primary sm-only-compact nav-auth"
+            onClick={() => openAuth("register")}
+            style={primaryBtnInline}
+          >
+            Get Started
+          </button>
+          <button
+            className="btn"
+            onClick={() => openAuth("login")}
+            style={{backgroundColor:"Darkgreen", color:"White"}}
+          >
+            Login
+          </button>
         </div>
       </div>
 
-      {/* inline red notice when non-English chosen */}
       {notice && (
         <div className="container" style={{ paddingBottom: 8 }}>
           <p style={{ color: "#dc2626", margin: 0, fontWeight: 700 }}>{notice}</p>
@@ -79,19 +100,32 @@ function Header({openAuth}) {
   );
 }
 
-/* ---------------- Hero ---------------- */
-function Hero({openAuth}) {
+/* ---------------- HERO (responsive padding fix) ---------------- */
+function Hero({ openAuth }) {
   const bg = `${process.env.PUBLIC_URL}/images/hero-bg.png`;
   const card = `${process.env.PUBLIC_URL}/images/hero-card.png`;
+
+  // dynamic padding so mobile has less top space
+  const [heroPadding, setHeroPadding] = useState("78px 0");
+
+  useEffect(() => {
+    const update = () => {
+      const w = window.innerWidth;
+      if (w < 640) setHeroPadding("28px 0");
+      else if (w < 900) setHeroPadding("48px 0");
+      else setHeroPadding("78px 0");
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
 
   return (
     <section
       className="hero"
       aria-labelledby="hero-title"
-      /* keep layout, just ensure bg shows without touching your CSS file */
-      style={{ position: "relative", padding: "78px 0", overflow: "hidden" }}
+      style={{ position: "relative", padding: heroPadding, overflow: "hidden" }}
     >
-      {/* Background image layer (from public/images) */}
       <div
         aria-hidden="true"
         style={{
@@ -112,31 +146,33 @@ function Hero({openAuth}) {
 
       <div className="container hero-grid" style={{ position: "relative", zIndex: 1 }}>
         <div className="hero-glass glass" style={{ textAlign: "center" }}>
-          {/* Title & sub updated */}
-          <h1 id="hero-title">Smart Learning with AI and Meaningful Sharing of Essentials</h1>
+          <h1 id="hero-title">Smart Learning & Respectful Sharing</h1>
           <p className="sub">
- Accessible AI guidance for studies and respectful sharing of resources  for every student and family.
+            Turn any textbook page or note into personalised practice and find local study essentials — in Telugu, Hindi or English.
           </p>
+
           <ul className="badges" aria-label="Highlights" style={{ justifyContent: "center" }}>
-            <li>🤖 AI Tutor</li>
             <li>🗣️ Telugu • Hindi • English</li>
-            <li>🔄 Offline & Online</li>
+            <li>🔄 Works Offline & Online</li>
+            <li>🌱 Community Sharing</li>
           </ul>
 
-          {/* hero CTAs with real links */}
           <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 14, flexWrap: "wrap" }}>
-            
             <div className="hero-buttons">
-              <button className="btn primary" href="/tutor">Try AI Tutor</button>
-            <button className="btn" onClick={() => openAuth("register")}>Get Started</button>
-<button className="btn ghost" onClick={() => openAuth("login")}>Already have an account?</button>
+              {/* Inline styles so buttons are visually distinct and don't rely on your global CSS */}
+              <button style={{ ...primaryBtnInline, marginRight: 8 }} onClick={() => openAuth("register")}>
+                Get Started
+              </button>
 
+              <button style={ghostBtnInline} onClick={() => openAuth("login")}>
+                Already have an account?
+              </button>
             </div>
           </div>
         </div>
 
         <div className="hero-card glass" aria-hidden="true">
-          <img alt="hero" src={card} className="hero-card-img"/>
+          <img alt="hero" src={card} className="hero-card-img" />
           <div className="leaf-ring" />
         </div>
       </div>
@@ -144,202 +180,16 @@ function Hero({openAuth}) {
   );
 }
 
-/* ---------------- How it works (with AI) ---------------- */
-function HowItWorks() {
-  return (
-    <section id="how" className="section tint-a" aria-labelledby="how-title">
-      <div className="container">
-        <h2 id="how-title">How it works</h2>
 
-        {/* EXACTLY 4 cards, as requested */}
-        <div className="cards">
-          <div className="card glass">
-            <h3>🎓 Learn with OpenAI</h3>
-            <p>Step-by-step explanations, examples, and voice—Telugu, Hindi, and English.</p>
-          </div>
 
-          <div className="card glass">
-            <h3>🎯 Interview preparation</h3>
-            <p>Practice Q&A, hints, and mock answers for viva and interviews.</p>
-          </div>
+/* ---------------- Other existing sections (unchanged text earlier but refined where requested) ---------------- */
 
-          <div className="card glass">
-            <h3>👀 Tutor sees your topic</h3>
-            <p>As you study, it can suggest relevant books or supplies listed nearby.</p>
-          </div>
 
-          <div className="card glass">
-            <h3>🌱 Green Points</h3>
-            <p>Private appreciation for giving/receiving—impact, not money.</p>
-          </div>
-        </div>
 
-        <p className="muted center" style={{ marginTop: 12 }}>
-          Share resources. Learn better. Do it with dignity.
-        </p>
-      </div>
-    </section>
-  );
-}
 
-/* ---------------- Explore ---------------- */
-function Featured() {
-  return (
-    <section id="explore" className="section tint-b" aria-labelledby="explore-title">
-      <div className="container">
-        <h2 id="explore-title">Trending items</h2>
-        <div className="grid-4">
-          {ITEMS.map((it, i) => (
-            <div key={i} className="item-card glass">
-              <div className="item-icon" aria-hidden="true" style={{ fontSize: 32 }}>{it.icon}</div>
-              <div className="item-body">
-                <div className="row between">
-                  <strong>{it.name}</strong>
-                  <span className="pill">+{it.pts} pts</span>
-                </div>
-                <p className="muted">Condition: {it.condition}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-        <p className="muted center">More added in your area every day.</p>
-      </div>
-    </section>
-  );
-}
 
-/* ---------------- AI Tutor teaser (anchor) ---------------- */
-function TutorTeaser() {
-  return (
-    <section id="tutor" className="section tint-a" aria-labelledby="tutor-title">
-      <div className="container center">
-        <h2 id="tutor-title">AI Tutor (coming soon)</h2>
-        <p className="muted">Explain • Practice • Translate • Voice — in Telugu, Hindi, English.</p>
-        <p className="muted">We’ll enable this right after Login/Signup.</p>
-      </div>
-    </section>
-  );
-}
 
-/* ---------------- Values, Stories, Why, FAQ, Final CTA ---------------- */
-function Values() {
-  return (
-    <section id="students" className="section tint-a" aria-labelledby="students-title">
-      <div className="container two-col">
-        <div>
-          <h2 id="students-title">Made for students and parents</h2>
-          <ul className="list">
-            <li>Right edition when syllabi change</li>
-            <li>Lower costs for families</li>
-            <li>Less clutter at home</li>
-            <li>Less waste in landfills</li>
-          </ul>
-        </div>
-        <div className="panel glass">
-          <h3>Smart helpers</h3>
-          <ul className="list small">
-            <li>Photo tips for clear listings</li>
-            <li>Suggested titles and tags</li>
-            <li>Offline drafts when data is limited</li>
-          </ul>
-        </div>
-      </div>
-    </section>
-  );
-}
 
-function Stories() {
-  const quotes = [
-    { text: "We found the exact guide our school switched to. No new purchase.", by: "Parent" },
-    { text: "I traded a calculator for notebooks. Both of us earned points.", by: "Student" },
-    { text: "Cleared space at home and helped a junior. Felt good.", by: "Alumni" },
-    { text: "I listed old lab gear. It got picked up the same day.", by: "College Student" },
-  ];
-  return (
-    <section id="stories" className="section tint-b" aria-labelledby="stories-title">
-      <div className="container">
-        <h2 id="stories-title">Success stories</h2>
-        <div className="carousel" role="list">
-          {quotes.map((q, i) => (
-            <blockquote key={i} className="quote glass" role="listitem">
-              “{q.text}”
-              <footer>— {q.by}</footer>
-            </blockquote>
-          ))}
-        </div>
-        <p className="muted center">Your small swaps add up.</p>
-      </div>
-    </section>
-  );
-}
-
-function WhyChooseUs() {
-  return (
-    <section id="why" className="section tint-a" aria-labelledby="why-title">
-      <div className="container">
-        <h2 id="why-title">Why Choose Us</h2>
-
-        <div className="recycle-wrap">
-          <svg className="recycle" viewBox="0 0 500 440" aria-hidden="true">
-            <defs>
-              <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-                <path d="M0,0 L6,3 L0,6 Z" fill="var(--brand-2)"></path>
-              </marker>
-            </defs>
-            <path d="M250 40 L430 330" stroke="var(--brand-2)" strokeWidth="4" fill="none" markerEnd="url(#arrow)"/>
-            <path d="M430 330 L70 330" stroke="var(--brand-2)" strokeWidth="4" fill="none" markerEnd="url(#arrow)"/>
-            <path d="M70 330 L250 40" stroke="var(--brand-2)" strokeWidth="4" fill="none" markerEnd="url(#arrow)"/>
-          </svg>
-
-          <div className="node node-top glass">
-            <div className="node-title">Reduce Waste</div>
-            <p className="node-text">Keep useful items in use. Cut landfill.</p>
-          </div>
-          <div className="node node-right glass">
-            <div className="node-title">Reuse Locally</div>
-            <p className="node-text">Share nearby to lower footprint.</p>
-          </div>
-          <div className="node node-left glass">
-            <div className="node-title">Support Learning</div>
-            <p className="node-text">Help students get what they need.</p>
-          </div>
-        </div>
-
-        <p className="center vision">Reuse first. Buy new only when needed.</p>
-      </div>
-    </section>
-  );
-}
-
-function FAQ() {
-  return (
-    <section id="faq" className="section tint-b" aria-labelledby="faq-title">
-      <div className="container faq">
-        <h2 id="faq-title">FAQ</h2>
-
-        <details className="glass">
-          <summary>What can I list?</summary>
-          <p>School and college essentials: books, guides, bags, calculators, stationery, basic lab items.</p>
-        </details>
-
-        <details className="glass">
-          <summary>Are Green Points money?</summary>
-          <p>No. They are private appreciation to reflect your positive impact.</p>
-        </details>
-
-        <details className="glass">
-          <summary>Is AI required?</summary>
-          <p>No. AI just helps with photo clarity and auto-details. You can edit everything.</p>
-        </details>
-
-        <details className="glass">
-          <summary>How do I stay safe?</summary>
-          <p>Meet in public spots and keep chats on the platform. Share only what is needed.</p>
-        </details>
-      </div>
-    </section>
-  );
-}
 
 function FinalImpact() {
   return (
@@ -348,8 +198,8 @@ function FinalImpact() {
         <h2 id="impact-title">Ready to start?</h2>
         <p className="center muted">Join the reuse movement. Every swap helps.</p>
         <div className="cta-actions">
-          <a className="btn primary" href="/register">Register</a>
-          <a className="btn ghost" href="/login">Login</a>
+          <a className="btn primary" href="/register" style={primaryBtnInline}>Register</a>
+          <a className="btn ghost" href="/login" style={ghostBtnInline}>Login</a>
         </div>
       </div>
     </section>
@@ -381,7 +231,6 @@ export default function App() {
 
   return (
     <>
-      {/* Pass openAuth into Header and Hero */}
       <Header openAuth={openAuth} />
       {authOpen && (
         <div className="modal-backdrop" onClick={closeAuth}>
@@ -394,11 +243,10 @@ export default function App() {
       <main id="main">
         <Hero openAuth={openAuth} />
         <HowItWorks />
-        <Featured />
-        <TutorTeaser />
-        <Values />
-        <Stories />
-        <WhyChooseUs />
+        <Featured/>
+        <Values/>
+               <SuccessStories/>
+         <WhyChooseUs/>
         <FAQ />
         <FinalImpact />
       </main>
@@ -406,4 +254,3 @@ export default function App() {
     </>
   );
 }
-

@@ -8,6 +8,10 @@ import Profile from "./pages/Profile";
 import "./App.css";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import AiLearningStudio from "./sections/AiLearningStudio";
+import TranslatorSection from "./sections/TranslatorSection";
+import FlashCardSection from "./sections/FlashCardSection";
+import AskAnythingSection from "./sections/AskAnythingSection";
 
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
@@ -19,7 +23,11 @@ root.render(
       <Route path="/register" element={<Register />} />
       <Route path="/login" element={<Login />} />
       <Route path="/profile" element={<Profile />} />
+      <Route path="/ai-learning" element={<AiLearningStudio />} />
+     <Route path="/translator" element={<TranslatorSection />} />
+     <Route path="/flashcards" element={<FlashCardSection />} />
      
+
       {/* keep /tutor route for later if you add it */}
     </Routes>
      

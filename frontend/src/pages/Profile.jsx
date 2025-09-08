@@ -1,23 +1,18 @@
+// src/pages/Profile.jsx
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
+import "./Profile.css";
 
-// Import section components
-import GenerateQuestionsSection from "../sections/GenerateQuestionsSection";
-import SavedQuestionsSection from "../sections/SavedQuestionsSection";
-import QAChatbotSection from "../sections/QAChatbotSection";
-import BookGeneratorSection from "../sections/BookGeneratorSection";
-import SavedBooksSection from "../sections/SavedBooksSection";
-import PDFsSection from "../sections/PDFsSection";
-import MyUploadsSection from "../sections/MyUploadsSection";
-import ReceivedItemsSection from "../sections/ReceivedItemsSection";
-
-// Middle card sections
-import LearnSection from "../sections/LearnSection";
+// Section components (unchanged)
 import UploadSection from "../sections/UploadSection";
 import ReceiveSection from "../sections/ReceiveSection";
-import AITutorSection from "../sections/AITutorSection";
-
+import AiLearningStudio from "../sections/AiLearningStudio";
+import TranslatorSection from "../sections/TranslatorSection";
+import FlashCardSection from "../sections/FlashCardSection";
+import MathTutorSection from "../sections/MathTutorSection";
+import AskAnythingSection from "../sections/AskAnythingSection";
+import PracticeFromImageSection from "../sections/PracticeFromImageSection";
 
 const fmt = (n) => n?.toLocaleString?.() ?? String(n);
 
@@ -29,7 +24,7 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState("");
   const [activeSection, setActiveSection] = useState("Dashboard");
-  const [sidebarOpen, setSidebarOpen] = useState(false); // for mobile
+  const [sidebarOpen, setSidebarOpen] = useState(false); // mobile overlay
 
   useEffect(() => {
     (async () => {
@@ -48,204 +43,233 @@ export default function Profile() {
     })();
   }, []);
 
-  if (loading) return <div className="glass" style={{ padding: 20 }}>Loading…</div>;
-  if (!me) return <div className="glass" style={{ padding: 20, color: "#b91c1c" }}>{msg || "No profile data"}</div>;
+  if (loading) return <div className="glass profile-loading">Loading…</div>;
+  if (!me) return <div className="glass profile-loading error">{msg || "No profile data"}</div>;
+
+  const LEFT_ITEMS = [
+    { id: "Dashboard", title: "Dashboard", icon: "📋" },
+    { id: "translator", title: "Translate & Audio", icon: "🔊" },
+    { id: "Flashcards", title: "Flashcards & Quizzes", icon: "🎴" },
+    { id: "Math Tutor", title: "Math Tutor", icon: "➗" },
+    { id: "Ask Anything", title: "Ask Anything", icon: "❓" },
+    { id: "Practice from Image", title: "Practice from Image", icon: "📷" },
+     { id: "Smart AI Learning", title: "Smart AI Learning", icon: "🤖" },
+    { id: "Smart Contribution", title: "Smart Contribution", icon: "♻️" },
+    { id: "Receive", title: "Knowledge Exchange", icon: "📥" },
+  ];
 
   function handleSignOut() {
     nav("/");
   }
 
-  const sidebarItems = [
-    "Dashboard",
-    "Generate Questions",
-    "Saved Questions",
-    "Q&A Chatbot",
-    "Book Generator",
-    "Saved Books",
-    "PDFs",
-    "My Uploads",
-    "Received Items",
-    "AI Tutor",
-  ];
+  function DashboardCards() {
+    return (
+      <div className="dashboard-cards" style={{ marginTop: "30px" }}>
+        <div className="card feature-card" onClick={() => setActiveSection("Smart AI Learning")}>
+          <h3>📘 AI Learning Studio</h3>
+          <p>
+            Convert textbook pages, images or pasted topics into adaptive practice: auto MCQs, fill-in-the-blanks, spoken
+            practice and step-by-step solutions.
+          </p>
+        </div>
+
+        <div className="card feature-card" onClick={() => setActiveSection("Smart Contribution")}>
+          <h3>♻️ Smart Contribution</h3>
+          <p>
+            Upload unused educational items — AI inspects condition, suggests metadata and approves quality listings.
+          </p>
+        </div>
+
+        <div className="card feature-card" onClick={() => setActiveSection("Receive")}>
+          <h3>📥 Knowledge Exchange</h3>
+          <p>
+            Browse and claim study materials locally. Use Green Points earned from learning & contributing to unlock more
+            support.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  function FullSection() {
+    const s = activeSection;
+    return (
+      <div className="full-section-body">
+        {s === "Upload" && <UploadSection />}
+        {s === "AI Tutor" && <AiLearningStudio />}
+        {s === "translator" && <TranslatorSection />}
+        {s === "Flashcards" && <FlashCardSection />}
+        {s === "Math Tutor" && <MathTutorSection />}
+        {s === "Ask Anything" && <AskAnythingSection />}
+        {s === "Practice from Image" && <PracticeFromImageSection />}
+        {s === "Smart AI Learning" && <AiLearningStudio />}
+        {s === "Smart Contribution" && <UploadSection />}
+        {s === "Receive" && <ReceiveSection />}
+      </div>
+    );
+  }
 
   return (
     <div className="profile-grid">
-
-      {/* LEFT SIDEBAR (desktop) */}
-      <aside className="sidebar-desktop" style={{ background: "lightgreen", color: "#121010ff", padding: 16 }}>
-        <div style={{ marginBottom: 20 }}>
-          <h2 className="brand">🌳 GreenMindAI</h2>
+      {/* LEFT SIDEBAR (desktop) - always present in DOM; CSS hides it on small screens */}
+      <aside className="sidebar-desktop">
+        <div className="brand-row">
+          <h2 className="brand">
+            GreenMindAI
+            
+          </h2>
         </div>
-        <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-          {sidebarItems.map((label) => (
-            <li
-              key={label}
-              onClick={() => {
-                setActiveSection(label);
-                setSidebarOpen(false); // close on mobile select
-              }}
-              style={{
-                padding: "12px 14px",
-                borderRadius: "4px",
-                marginBottom: "4px",
-                cursor: "pointer",
-                background: activeSection === label ? "rgba(255,255,255,0.15)" : "transparent",
-                fontWeight: 600,
-              }}
-            >
-              {label}
-            </li>
-          ))}
-        </ul>
-        <button className="btn primary" onClick={handleSignOut} style={{ marginTop: 20 }}>
-          Sign out
-        </button>
-      </aside>
 
-      {/* Sidebar overlay for mobile */}
-      {sidebarOpen && (
-        <aside className="sidebar-overlay">
-          <button className="btn ghost" onClick={() => setSidebarOpen(false)} style={{ marginBottom: 16 }}>
-            ✕ Close
-          </button>
-          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-            {sidebarItems.map((label) => (
+        <nav className="left-nav" aria-label="Main navigation">
+          <ul>
+            {LEFT_ITEMS.map((item) => (
               <li
-                key={label}
+                key={item.id}
+                className={activeSection === item.id ? "active" : ""}
                 onClick={() => {
-                  setActiveSection(label);
+                  setActiveSection(item.id);
                   setSidebarOpen(false);
                 }}
-                style={{
-                  padding: "12px 14px",
-                  borderRadius: "4px",
-                  marginBottom: "4px",
-                  cursor: "pointer",
-                  background: activeSection === label ? "rgba(255,255,255,0.15)" : "transparent",
-                  fontWeight: 600,
-                }}
               >
-                {label}
+                <span className="left-icon" aria-hidden="true">
+                  {item.icon}
+                </span>
+                <span className="left-label">{item.title}</span>
               </li>
             ))}
           </ul>
-        </aside>
-      )}
+        </nav>
 
-      {/* CENTER */}
-      <main style={{ padding: 18, background: "var(--page)", overflowY: "auto" }}>
-        {/* NAV BAR */}
-        <header className="header">
-          <div className="header-row">
-            {/* Hamburger only visible on small screens */}
-            <button
-              className="btn ghost hamburger"
-              onClick={() => setSidebarOpen(true)}
-              style={{ display: "none" }}
-            >
-              ☰
-            </button>
+        <div className="sidebar-footer">
+          <button className="btn signout" onClick={handleSignOut}>
+            Sign out
+          </button>
+        </div>
+      </aside>
 
-            <div>
-              <h3 style={{ margin: 0,  paddingLeft: 10}}>Welcome, {me.full_name}</h3>
-            </div>
-            <div className="actions">
-              <div className="pill"><strong>Points:</strong> {me.points}</div>
-              <div className="pill"><strong>Level:</strong> {me.level}</div>
-              <div className="pill"><strong>Streak:</strong> {me.streak_count}d</div>
-            </div>
+      {/* MAIN CENTER */}
+      <main className="profile-main">
+        <header className="profile-header">
+          <div className="header-left">
+            {/* hamburger appears inside header on small screens; hidden by CSS on large screens */}
+            {!sidebarOpen && (
+              <div className="mobile-hamburger" aria-hidden="false">
+                <button
+                  className="hamb-btn"
+                  aria-label="Open menu"
+                  onClick={() => {
+                    setSidebarOpen(true);
+                  }}
+                >
+                  ☰
+                </button>
+              </div>
+            )}
+
+            <h3>Welcome, {me.full_name}</h3>
+          </div>
+
+          <div className="header-meta" aria-hidden="false">
+            <strong>Points: {fmt(me.points)}</strong>
+            <strong>Streak: {fmt(me.streak_count)}</strong>
           </div>
         </header>
 
-      <div style={{ marginTop: 20 }}>
-  {activeSection === "Dashboard" && (
-    <div className="cards">
-       <div className="card glass" onClick={() => setActiveSection("AI Tutor")}>
-  <h3>🤖 AI Tutor</h3>
-  <p>Get instant AI-powered tutoring support.</p>
-</div>
-      <div className="card glass" onClick={() => setActiveSection("Upload")}>
-        <h3>♻️ Upload</h3>
-        <p>Upload preloved educational items.</p>
-      </div>
-      <div className="card glass" onClick={() => setActiveSection("Receive")}>
-        <h3>📥 Receive</h3>
-        <p>Browse and claim shared resources.</p>
-      </div>
-  
+        {/* Back button — second row when not Dashboard */}
+        {activeSection !== "Dashboard" && (
+          <div>
+            <button
+              className="btn back" style={{marginLeft:"10px", marginRight:"10px"}}
+              onClick={() => {
+                setActiveSection("Dashboard");
+              }}
+            >
+              ← Back
+            </button>
+          </div>
+        )}
 
-    </div>
-  )}
+        <section className="center-area" style={{marginLeft:"10px"}}>
+          {activeSection === "Dashboard" && (
+            <>
+              <DashboardCards />
+              <div className="info-panel" style={{margin:"20px", padding:"2px"}} >
+                <p>
+                  <strong>Tip:</strong> Click any left menu item to open that feature in full view (Back button returns to
+                  Dashboard).
+                </p>
+              </div>
+            </>
+          )}
 
-  {activeSection !== "Dashboard" && (
-    <div>
-      <button className="btn" onClick={() => setActiveSection("Dashboard")} style= {{marginDown:"0.5rem"}}>
-        ← Back
-      </button>
-<p></p>
-      {activeSection === "Learn" && <LearnSection />}
-      {activeSection === "Upload" && <UploadSection />}
-      {activeSection === "Receive" && <ReceiveSection />}
-      {activeSection === "Generate Questions" && <GenerateQuestionsSection />}
-      {activeSection === "Saved Questions" && <SavedQuestionsSection />}
-      {activeSection === "Q&A Chatbot" && <QAChatbotSection />}
-      {activeSection === "Book Generator" && <BookGeneratorSection />}
-      {activeSection === "Saved Books" && <SavedBooksSection />}
-      {activeSection === "PDFs" && <PDFsSection />}
-      {activeSection === "My Uploads" && <MyUploadsSection />}
-      {activeSection === "Received Items" && <ReceivedItemsSection />}
-      {activeSection === "AI Tutor" && <AITutorSection />}
-
-    </div>
-  )}
-</div>
-
-      
+          {activeSection !== "Dashboard" && <FullSection />}
+        </section>
       </main>
 
+      {/* RIGHT SIDEBAR */}
+      <aside className="rightbar" style ={{padding:"5px"}} >
+        <section className="glass panel impact-panel" style={{paddingRight:"0px"}}>
     
-      
-       {/* RIGHT SIDEBAR */}
-<aside style={{ background: "#fff", padding: 16 }} className="rightbar">
-  <section className="glass panel">
-    <h4>🌍 Impact</h4>
+            <h4>🌱Impact & Community</h4>
+            <div className="impact-key" style={{marginBottom: "10px"}} >👩‍🎓 Active learners: {fmt(stats?.active_users || 0)}</div>
+            <div className="impact-key" style={{marginBottom: "10px"}}>📚 Resources contributed: {fmt(stats?.resources_contributed || 0)}</div>
+            <div className="impact-key" style={{marginBottom: "10px"}}>📥 Resources accessed: {fmt(stats?.resources_accessed || 0)}</div>
+            <div className="impact-key" style={{marginBottom: "10px"}}>⚡ Learning hours accelerated: {fmt(stats?.hours_saved || 0)}</div>
+            <div className="impact-key" style={{marginBottom: "10px"}}>♻️ Materials reused:{fmt(stats?.items_exchanged || 0)}</div>
+        
 
-    <p>
-      <strong>👩‍🎓 Active Learners:</strong>{" "}
-      {fmt(stats?.active_users || 25)}
-    </p>
-    <p>
-      <strong>📚 Resources Contributed:</strong>{" "}
-      {fmt(stats?.resources_contributed || 10)}
-    </p>
-    <p>
-      <strong>📥 Resources Accessed:</strong>{" "}
-      {fmt(stats?.resources_accessed || 15)}
-    </p>
-    <p>
-      <strong>⚡ Learning Hours Accelerated:</strong>{" "}
-      {fmt(stats?.hours_saved || 50)}
-    </p>
-    <p>
-      <strong>🌱 Materials Reused:</strong>{" "}
-      {fmt(stats?.items_exchanged || 8)}
-    </p>
-  </section>
+          <hr className="impact-sep" />
 
-  <section className="glass panel" style={{ marginTop: 12 }}>
-    <h4>🏆 Top Contributor</h4>
-    {topper ? (
-      <>
-        <div>{topper.full_name}</div>
-        <div>{fmt(topper.points)} GP</div>
-      </>
-    ) : (
-      <p>Bhuvana — 2,275 GP</p> 
-    )}
-  </section>
-</aside>
+          <div className="topper-block">
+            <div className="topper-title" style={{marginBottom: "10px"}}>🏆 Top contributor</div>
+            {topper ? (
+              <div className="topper-info">
+                <div className="topper-name">{topper.full_name}: {fmt(topper.points)} GP</div>
+              </div>
+            ) : (
+              <div className="topper-info" >
+                <div className="topper-name">Bhuvana: 2,290 GP</div>
+              </div>
+            )}
+          </div>
+        </section>
+      </aside>
 
-  
+      {/* MOBILE overlay (renders only when sidebarOpen is true) */}
+      {sidebarOpen && (
+        <aside className="sidebar-overlay" role="dialog" aria-label="mobile menu overlay">
+          <button
+            className="btn close"
+            aria-label="Close menu"
+            onClick={() => {
+              setSidebarOpen(false);
+            }}
+          >
+            ✕
+          </button>
+
+          <ul className="overlay-list">
+            {LEFT_ITEMS.map((item) => (
+              <li
+                key={item.id}
+                onClick={() => {
+                  setActiveSection(item.id);
+                  setSidebarOpen(false);
+                }}
+              >
+                <span className="left-icon">{item.icon}</span>
+                <span>{item.title}</span>
+              </li>
+            ))}
+          </ul>
+
+          <div style={{ marginTop: 18 }}>
+            <button className="btn signout" onClick={handleSignOut}>
+              Sign out
+            </button>
+          </div>
+        </aside>
+      )}
     </div>
   );
 }

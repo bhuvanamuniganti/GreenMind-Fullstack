@@ -118,7 +118,7 @@ module.exports = function init() {
     )
   `).run();
 
-  db.prepare(`
+   db.prepare(`
     CREATE TABLE IF NOT EXISTS uploads (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER,
@@ -132,17 +132,25 @@ module.exports = function init() {
   `).run();
 
   // Ensure uploads table has claimed_by and claimed_at
-try {
-  db.prepare("ALTER TABLE uploads ADD COLUMN claimed_by INTEGER").run();
-} catch (e) {
-  if (!String(e).includes("duplicate column")) throw e;
-}
+  try {
+    db.prepare("ALTER TABLE uploads ADD COLUMN claimed_by INTEGER").run();
+  } catch (e) {
+    if (!String(e).includes("duplicate column")) throw e;
+  }
 
-try {
-  db.prepare("ALTER TABLE uploads ADD COLUMN claimed_at TEXT").run();
-} catch (e) {
-  if (!String(e).includes("duplicate column")) throw e;
-}
+  try {
+    db.prepare("ALTER TABLE uploads ADD COLUMN claimed_at TEXT").run();
+  } catch (e) {
+    if (!String(e).includes("duplicate column")) throw e;
+  }
+
+  // Ensure uploads table has quality column
+  try {
+    db.prepare("ALTER TABLE uploads ADD COLUMN quality TEXT").run();
+  } catch (e) {
+    if (!String(e).includes("duplicate column")) throw e;
+  }
+
 
 
   // --- seed tasks ---

@@ -1,14 +1,17 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import html2canvas from "html2canvas";
 import { toast } from "react-toastify";
 
-export default function ReceiveSection({ currentUser, setMe }) {
+export default function ReceiveSection({ setMe }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [showCard, setShowCard] = useState(false);
-  const cardRef = useRef(null);
+
+  // certificate overlay
+  const [showCert, setShowCert] = useState(false);
+  const [cert, setCert] = useState(null); // {title, subtitle, body, hashtags:[]}
+  const certRef = useRef(null);
 
   useEffect(() => {
     (async () => {
@@ -16,148 +19,218 @@ export default function ReceiveSection({ currentUser, setMe }) {
         const res = await axios.get("http://localhost:4000/api/receive", {
           withCredentials: true,
         });
-        setItems(res.data);
+        setItems(res.data || []);
       } catch (err) {
         console.error("Failed to fetch receive items", err);
+        toast.error("Could not load items");
       } finally {
         setLoading(false);
       }
     })();
   }, []);
 
-  if (loading) return <p>Loading...</p>;
+  if (loading) return <p>Loading…</p>;
 
-  // 🎤 Voice search
-  function handleVoiceSearch() {
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert("Voice recognition not supported in this browser.");
-      return;
-    }
-    const recognition = new SpeechRecognition();
-    recognition.lang = "en-US";
-    recognition.onresult = (event) => {
-      setSearch(event.results[0][0].transcript);
-    };
-    recognition.start();
-  }
-
-  async function handleClaim(id) {
+  // claim and then show certificate
+  async function handleClaim(item) {
     try {
       await axios.post(
-        `http://localhost:4000/api/receive/claim/${id}`,
+        `http://localhost:4000/api/receive/claim/${item.id}`,
         {},
         { withCredentials: true }
       );
 
-      setItems(items.filter((item) => item.id !== id));
-      setShowCard(true);
+      // remove from UI + deduct points
+      setItems(prev => prev.filter(x => x.id !== item.id));
+      if (setMe) setMe(p => ({ ...p, points: (p.points || 0) - 10 }));
 
-      // ✅ Deduct 10 points for claimer
-      if (setMe) {
-        setMe((prev) => ({ ...prev, points: prev.points - 10 }));
+      // fetch certificate text (AI with fallback)
+      try {
+        const r = await axios.post(
+          "http://localhost:4000/api/receive/thanks",
+          {
+            userName: "You",
+            itemTitle: item.title || "a resource",
+            category: item.category || "Learning"
+          },
+          { withCredentials: true }
+        );
+        setCert(r.data);
+      } catch {
+        setCert({
+          title: "Certificate of Appreciation",
+          subtitle: "For Supporting Smart Learning & Reuse",
+          body:
+            `Thank you for receiving “${item.title || "a resource"}”. ` +
+            `You helped reduce waste and support an affordable learning journey. ` +
+            `Every small act like this inspires others to share and receive. 💚`,
+          hashtags: ["#ShareToLearn", "#ReduceWaste", "#GreenMindAI"]
+        });
       }
-      toast.info("📉 10 points deducted for claiming");
-    } catch (err) {
+      setShowCert(true);
+      toast.success("Item claimed!");
+    } catch {
       toast.error("⚠️ Could not claim item");
     }
   }
 
-  // 📸 Download card as image
-  async function downloadCard() {
-    if (!cardRef.current) return;
-    const canvas = await html2canvas(cardRef.current);
+  // download the certificate as PNG
+  async function downloadCertPNG() {
+    if (!certRef.current) return;
+    const canvas = await html2canvas(certRef.current, { backgroundColor: null, scale: 2 });
     const link = document.createElement("a");
-    link.download = "greenmind-thankyou.png";
-    link.href = canvas.toDataURL();
+    link.download = "GreenMindAI-Appreciation.png";
+    link.href = canvas.toDataURL("image/png");
     link.click();
   }
 
-  // Filter items
-  const filtered = items.filter(
-    (item) =>
-      item.title.toLowerCase().includes(search.toLowerCase()) ||
-      item.description.toLowerCase().includes(search.toLowerCase())
-  );
+  
+
+  // filter only when text typed
+  const filtered = items.filter(item => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      item.title?.toLowerCase().includes(q) ||
+      item.description?.toLowerCase().includes(q) ||
+      item.category?.toLowerCase().includes(q)
+    );
+  });
 
   return (
     <div style={{ position: "relative" }}>
       <h2>📥 Receive Items</h2>
 
-      {/* Overlay Thank You Card */}
-      {showCard && (
+      {/* Certificate overlay */}
+      {showCert && (
         <div
           style={{
             position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100vw",
-            height: "100vh",
-            background: "rgba(0,0,0,0.6)",
+            inset: 0,
+            background: "rgba(0,0,0,0.55)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             zIndex: 1000,
+            padding: 16
           }}
         >
-          <div
-            ref={cardRef}
-            style={{
-              background: "#fff",
-              padding: "30px",
-              borderRadius: "16px",
-              textAlign: "center",
-              maxWidth: "500px",
-              width: "90%",
-              position: "relative",
-            }}
-          >
-            <button
-              onClick={() => setShowCard(false)}
+          <div style={{ width: "min(680px, 95vw)" }}>
+            <div
+              ref={certRef}
               style={{
-                position: "absolute",
-                top: "10px",
-                right: "10px",
-                border: "none",
-                background: "transparent",
-                fontSize: "20px",
-                cursor: "pointer",
+                position: "relative",
+                borderRadius: 24,
+                padding: 28,
+                background:
+                  "radial-gradient(1200px 600px at -10% -20%, #ecfccb, transparent 60%)," +
+                  "radial-gradient(900px 500px at 120% 120%, #cffafe, transparent 60%)," +
+                  "linear-gradient(135deg, #ffffff, #f8fafc)",
+                boxShadow: "0 20px 60px rgba(2,6,23,.25), inset 0 0 0 2px rgba(15,23,42,.07)",
+                overflow: "hidden"
               }}
             >
-              ✖
-            </button>
+              {/* decorative border */}
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 10,
+                  borderRadius: 20,
+                  border: "2px dashed rgba(2,6,23,.15)",
+                  pointerEvents: "none"
+                }}
+              />
 
-            <h2 style={{ color: "#2e7d32" }}>🌳 GreenMindAI</h2>
-            <h3 style={{ margin: "5px 0", color: "#388e3c" }}>Thank You!</h3>
-            <p style={{ fontSize: "1rem", color: "#444" }}>
-              You’ve successfully claimed an item. Together, we’re reducing waste
-              and reusing resources responsibly.
-            </p>
+              {/* header */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: "50%",
+                    background:
+                      "conic-gradient(from 0deg, #22c55e, #06b6d4, #8b5cf6, #22c55e)",
+                    filter: "saturate(1.1)",
+                    display: "grid",
+                    placeItems: "center",
+                    color: "white",
+                    fontWeight: 800,
+                    boxShadow: "0 10px 20px rgba(2,6,23,.25)"
+                  }}
+                >
+                  🌿
+                </div>
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a" }}>
+                    {cert?.title || "Certificate of Appreciation"}
+                  </div>
+                  <div style={{ fontSize: 13, color: "#334155" }}>
+                    {cert?.subtitle || "For Supporting Smart Learning & Reuse"}
+                  </div>
+                </div>
+              </div>
 
-            <button
-              className="btn primary"
-              style={{ marginTop: "20px" }}
-              onClick={downloadCard}
-            >
-              ⬇️ Download Card
-            </button>
+              {/* body */}
+              <div style={{ marginTop: 18, fontSize: 15.5, lineHeight: 1.6, color: "#0f172a", whiteSpace: "pre-wrap" }}>
+                {cert?.body}
+              </div>
+
+              {/* tags */}
+              {Array.isArray(cert?.hashtags) && cert.hashtags.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 16 }}>
+                  {cert.hashtags.map((t, i) => (
+                    <span key={i}
+                      style={{
+                        fontSize: 12,
+                        padding: "6px 10px",
+                        borderRadius: 999,
+                        background: "#f1f5f9",
+                        color: "#334155",
+                        border: "1px solid #e2e8f0"
+                      }}
+                    >
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* footer ribbon */}
+              <div
+                style={{
+                  marginTop: 22,
+                  paddingTop: 14,
+                  borderTop: "1px solid rgba(2,6,23,.06)",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 12,
+                  flexWrap: "wrap"
+                }}
+              >
+                <div style={{ fontSize: 12.5, color: "#334155" }}>
+                  Thank you for inspiring others to **share & receive**.
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button className="btn primary" onClick={downloadCertPNG}>⬇ Download PNG</button>
+                  <button className="btn ghost" onClick={() => setShowCert(false)}>Close</button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Search controls */}
-      <div style={{ marginBottom: "12px", display: "flex", gap: "8px" }}>
+      {/* Search */}
+      <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
         <input
           type="text"
-          placeholder="Search items..."
+          placeholder="Search items…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{ flex: 1, padding: "8px", borderRadius: "6px" }}
+          style={{ flex: 1, minWidth: 220, padding: 8, borderRadius: 6 }}
         />
-        <button className="btn" onClick={handleVoiceSearch}>
-          🎤
-        </button>
+        <button className="btn" onClick={() => setSearch("")} style ={{backgroundColor:"Red", color:"White"}}>Clear</button>
       </div>
 
       {/* Items grid */}
@@ -165,34 +238,49 @@ export default function ReceiveSection({ currentUser, setMe }) {
         className="cards-grid"
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-          gap: "16px",
+          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+          gap: 16,
         }}
       >
         {filtered.map((item) => (
           <div key={item.id} className="card glass">
-            <img
-              src={`http://localhost:4000${item.imageUrl}`}
-              alt={item.title}
+            {/* Image area (full fit) */}
+            <div
               style={{
                 width: "100%",
-                maxHeight: "200px",
-                objectFit: "cover",
-                borderRadius: "8px",
+                height: 220,
+                background: "#f8fafc",
+                borderRadius: 8,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                overflow: "hidden",
+                border: "1px solid #e5e7eb",
               }}
-            />
-            <h3>{item.title}</h3>
-            <p>{item.description}</p>
+            >
+              <img
+                src={`http://localhost:4000${item.imageUrl}`}
+                alt={item.title || "Item image"}
+                style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", display: "block" }}
+                loading="lazy"
+              />
+            </div>
+
+            {/* Title */}
+            <h3 className="receive-title" title={item.title} style={{ margin: "10px 0 6px" }}>
+              {item.title || "Untitled"}
+            </h3>
+
+            <p style={{ marginTop: 0 }}>{item.description}</p>
             <p><strong>Category:</strong> {item.category}</p>
             <p><strong>Quality:</strong> {item.quality || "Good"}</p>
             <span className="badge">By {item.uploader_name}</span>
-            <button
-              className="btn primary"
-              onClick={() => handleClaim(item.id)}
-              style={{ marginTop: "8px" }}
-            >
-              Claim
-            </button>
+
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <button className="btn primary" onClick={() => handleClaim(item)}>
+                Claim
+              </button>
+            </div>
           </div>
         ))}
         {filtered.length === 0 && <p>No items match your search.</p>}

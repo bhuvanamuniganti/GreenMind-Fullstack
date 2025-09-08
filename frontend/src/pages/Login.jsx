@@ -80,10 +80,10 @@ export default function Login() {
         </label>
 
         <div className="form-actions" style={{ marginTop: 20 }}>
-          <button className="btn primary" type="submit" disabled={loading}>
+          <button className="btn primary" type="submit" disabled={loading} style={{backgroundColor:"darkgreen"}}>
             {loading ? "Signing in…" : "Sign in"}
           </button>
-          <Link className="btn" to="/register" style={{ marginLeft: 10 }}>
+          <Link className="btn primary" to="/register" style={{ marginLeft: 10, backgroundColor: "#e66a31ff" }}>
             Create account
           </Link>
         </div>
