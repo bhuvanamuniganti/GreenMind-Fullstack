@@ -1,5 +1,6 @@
-// frontend/src/api.js — temporary debug override
-const API_BASE = "http://localhost:4000"; // force dev backend URL
+// frontend/src/api.js
+// Use env var in production (Netlify). Falls back to localhost for local dev.
+const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:4000";
 
 export async function api(path, { method = "GET", body, headers } = {}) {
   const token = localStorage.getItem("token");
