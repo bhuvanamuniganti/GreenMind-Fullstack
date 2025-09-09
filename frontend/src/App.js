@@ -1,25 +1,21 @@
 import React, { useState, useEffect } from "react";
 import "./App.css";
-
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+
 import HowItWorks from "./sections/HowItWorks";
 import WhyChooseUs from "./sections/WhyChooseUs";
 import Values from "./sections/Values";
 import Featured from "./sections/Featured";
 import FAQ from "./sections/FAQ";
 import SuccessStories from "./sections/SuccessStories";
+
 /* ---------------- Data ---------------- */
-const NAV_TOP = [
-  { id: "how", label: "How it works", icon: "📌", href: "#how" }
+const NAV_TOP = [{ id: "how", label: "How it works", icon: "📌", href: "#how" }];
 
-];
-
-
-
-/* ---------------- Inline button styles (only inline so App.css is untouched) ---------------- */
+/* ---------------- Styles ---------------- */
 const primaryBtnInline = {
-  background: "linear-gradient(135deg,#ff8a00,#ff5e00)", // orange gradient
+  background: "linear-gradient(135deg,#ff8a00,#ff5e00)",
   border: "none",
   color: "#fff",
   padding: "10px 14px",
@@ -27,9 +23,6 @@ const primaryBtnInline = {
   fontWeight: 900,
   cursor: "pointer",
 };
-
-
-
 const ghostBtnInline = {
   background: "Darkgreen",
   border: "1px solid rgba(14,104,47,.9)",
@@ -56,7 +49,9 @@ function Header({ openAuth }) {
   return (
     <header className="header" role="banner">
       <div className="container header-row">
-        <div className="brand" title="GreenMindAI" style = {{marginLeft:"2px"}}>GreenMindAI🌳🤖</div>
+        <div className="brand" title="GreenMindAI" style={{ marginLeft: 2 }}>
+          GreenMindAI🌳🤖
+        </div>
 
         <nav className="nav" aria-label="Main">
           {NAV_TOP.map((n) => (
@@ -68,7 +63,13 @@ function Header({ openAuth }) {
         </nav>
 
         <div className="actions">
-          <select id="lang" className="lang-select" value={lang} onChange={onLangChange} style={{backgroundColor:"white"}}>
+          <select
+            id="lang"
+            className="lang-select"
+            value={lang}
+            onChange={onLangChange}
+            style={{ backgroundColor: "white" }}
+          >
             <option value="en">English</option>
             <option value="te">తెలుగు</option>
             <option value="hi">हिंदी</option>
@@ -84,7 +85,7 @@ function Header({ openAuth }) {
           <button
             className="btn"
             onClick={() => openAuth("login")}
-            style={{backgroundColor:"Darkgreen", color:"White"}}
+            style={{ backgroundColor: "Darkgreen", color: "White", marginLeft: 10, padding: "10px 14px", borderRadius: "999px", fontWeight: 900 }}
           >
             Login
           </button>
@@ -100,14 +101,12 @@ function Header({ openAuth }) {
   );
 }
 
-/* ---------------- HERO (responsive padding fix) ---------------- */
+/* ---------------- HERO ---------------- */
 function Hero({ openAuth }) {
   const bg = `${process.env.PUBLIC_URL}/images/hero-bg.png`;
   const card = `${process.env.PUBLIC_URL}/images/hero-card.png`;
 
-  // dynamic padding so mobile has less top space
   const [heroPadding, setHeroPadding] = useState("78px 0");
-
   useEffect(() => {
     const update = () => {
       const w = window.innerWidth;
@@ -121,11 +120,7 @@ function Hero({ openAuth }) {
   }, []);
 
   return (
-    <section
-      className="hero"
-      aria-labelledby="hero-title"
-      style={{ position: "relative", padding: heroPadding, overflow: "hidden" }}
-    >
+    <section className="hero" aria-labelledby="hero-title" style={{ position: "relative", padding: heroPadding, overflow: "hidden" }}>
       <div
         aria-hidden="true"
         style={{
@@ -143,7 +138,6 @@ function Hero({ openAuth }) {
           zIndex: 0
         }}
       />
-
       <div className="container hero-grid" style={{ position: "relative", zIndex: 1 }}>
         <div className="hero-glass glass" style={{ textAlign: "center" }}>
           <h1 id="hero-title">Smart Learning & Respectful Sharing</h1>
@@ -159,11 +153,9 @@ function Hero({ openAuth }) {
 
           <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 14, flexWrap: "wrap" }}>
             <div className="hero-buttons">
-              {/* Inline styles so buttons are visually distinct and don't rely on your global CSS */}
               <button style={{ ...primaryBtnInline, marginRight: 8 }} onClick={() => openAuth("register")}>
                 Get Started
               </button>
-
               <button style={ghostBtnInline} onClick={() => openAuth("login")}>
                 Already have an account?
               </button>
@@ -180,26 +172,16 @@ function Hero({ openAuth }) {
   );
 }
 
-
-
-/* ---------------- Other existing sections (unchanged text earlier but refined where requested) ---------------- */
-
-
-
-
-
-
-
-
-function FinalImpact() {
+/* ---------------- Final CTA ---------------- */
+function FinalImpact({ openAuth }) {
   return (
     <section id="impact" className="section final-cta" aria-labelledby="impact-title">
       <div className="container">
         <h2 id="impact-title">Ready to start?</h2>
         <p className="center muted">Join the reuse movement. Every swap helps.</p>
         <div className="cta-actions">
-          <a className="btn primary" href="/register" style={primaryBtnInline}>Register</a>
-          <a className="btn ghost" href="/login" style={ghostBtnInline}>Login</a>
+          <button className="btn primary" onClick={() => openAuth("register")} style={primaryBtnInline}>Register</button>
+          <button className="btn ghost" onClick={() => openAuth("login")} style={ghostBtnInline}>Login</button>
         </div>
       </div>
     </section>
@@ -216,26 +198,31 @@ function Footer() {
   );
 }
 
-/* ---------------- App ---------------- */
+/* ---------------- App (modal auth on Home) ---------------- */
 export default function App() {
   const [authOpen, setAuthOpen] = useState(false);
-  const [authMode, setAuthMode] = useState("login");
+  const [authMode, setAuthMode] = useState("login"); // "login" or "register"
 
-  function openAuth(mode) {
+  const openAuth = (mode = "login") => {
     setAuthMode(mode);
     setAuthOpen(true);
-  }
-  function closeAuth() {
-    setAuthOpen(false);
-  }
+  };
+  const closeAuth = () => setAuthOpen(false);
 
   return (
     <>
       <Header openAuth={openAuth} />
+
+      {/* Auth Modal (appears above Home) */}
       {authOpen && (
         <div className="modal-backdrop" onClick={closeAuth}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-            {authMode === "login" ? <Login /> : <Register />}
+            {/* pass onSwitch to toggle mode from inside form */}
+            {authMode === "login" ? (
+              <Login onSwitch={(mode) => setAuthMode(mode)} />
+            ) : (
+              <Register onSwitch={(mode) => setAuthMode(mode)} />
+            )}
           </div>
         </div>
       )}
@@ -243,13 +230,14 @@ export default function App() {
       <main id="main">
         <Hero openAuth={openAuth} />
         <HowItWorks />
-        <Featured/>
-        <Values/>
-               <SuccessStories/>
-         <WhyChooseUs/>
+        <Featured />
+        <Values />
+        <SuccessStories />
+        <WhyChooseUs />
         <FAQ />
-        <FinalImpact />
+        <FinalImpact openAuth={openAuth} />
       </main>
+
       <Footer />
     </>
   );

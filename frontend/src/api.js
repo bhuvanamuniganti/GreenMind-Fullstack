@@ -1,30 +1,34 @@
-const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:4000";
+// frontend/src/api.js — temporary debug override
+const API_BASE = "http://localhost:4000"; // force dev backend URL
 
 export async function api(path, { method = "GET", body, headers } = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const token = localStorage.getItem("token");
+  const mergedHeaders = { "Content-Type": "application/json", ...(headers || {}) };
+  if (token) mergedHeaders["Authorization"] = `Bearer ${token}`;
+
+  const url = `${API_BASE}${path}`;
+  console.log("[api] request ->", { url, method, body, headers: mergedHeaders });
+
+  const res = await fetch(url, {
     method,
     credentials: "include",
-    headers: { "Content-Type": "application/json", ...(headers || {}) },
+    headers: mergedHeaders,
     body: body ? JSON.stringify(body) : undefined,
   });
 
   const text = await res.text();
   let data;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = { raw: text };
-  }
+  try { data = text ? JSON.parse(text) : null; } catch { data = { raw: text }; }
 
+  console.log("[api] response ->", { status: res.status, data });
   if (!res.ok) {
     const err = new Error("Request failed");
     err.status = res.status;
     err.data = data || { error: "Request failed" };
-    throw err; // ✅ now ESLint-safe
+    throw err;
   }
 
   return data;
 }
 
-// ✅ default export so components can import API_BASE directly
 export default API_BASE;
