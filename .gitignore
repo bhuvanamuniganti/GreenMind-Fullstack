@@ -9,3 +9,11 @@ dist/
 
 # local env
 .env
+/backend/greenmind.db
+/backend/data/
+/backend/uploads/
+/backend/eng.traineddata
+/frontend/.env
+/node_modules/
+/dist/
+/build/
