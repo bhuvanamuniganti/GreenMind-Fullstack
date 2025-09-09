@@ -1,27 +1,36 @@
 // backend/init.js
 const db = require("./db");
 
-/**
- * Return a Set of existing column names for a table.
- */
+// Helper: get columns and check missing
 function getColumns(table) {
   const rows = db.prepare(`PRAGMA table_info(${table});`).all();
   return new Set(rows.map(r => r.name));
 }
-
 function colMissing(table, name) {
   const rows = db.prepare(`PRAGMA table_info(${table})`).all();
   return !rows.some(r => r.name === name);
 }
 
+// Enable foreign keys if driver supports pragma()
+try {
+  if (typeof db.pragma === "function") {
+    db.pragma("foreign_keys = ON");
+  } else {
+    // If your db wrapper doesn't expose pragma, set it in db.js connection code.
+  }
+} catch (e) {
+  // non-fatal
+  console.warn("Could not set foreign_keys pragma:", e.message || e);
+}
+
 module.exports = function init() {
-  // 1) Ensure base table exists
+  // 1) Users table (create if missing)
   db.prepare(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email TEXT NOT NULL UNIQUE,
       full_name TEXT NOT NULL,
-      password_hash TEXT NOT NULL,
+      password_hash TEXT,
       role TEXT NOT NULL DEFAULT 'user',
       languages TEXT NOT NULL DEFAULT '["en"]',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -29,11 +38,11 @@ module.exports = function init() {
     );
   `).run();
 
-  // 2) Add missing columns
-  if (colMissing('users', 'points'))        db.prepare(`ALTER TABLE users ADD COLUMN points INTEGER NOT NULL DEFAULT 0`).run();
-  if (colMissing('users', 'level'))         db.prepare(`ALTER TABLE users ADD COLUMN level INTEGER NOT NULL DEFAULT 1`).run();
-  if (colMissing('users', 'streak_count'))  db.prepare(`ALTER TABLE users ADD COLUMN streak_count INTEGER NOT NULL DEFAULT 0`).run();
-  if (colMissing('users', 'streak_ymd'))    db.prepare(`ALTER TABLE users ADD COLUMN streak_ymd TEXT`).run();
+  // 2) Add missing columns to users
+  if (colMissing('users', 'points'))        db.prepare(`ALTER TABLE users ADD COLUMN points INTEGER NOT NULL DEFAULT 0;`).run();
+  if (colMissing('users', 'level'))         db.prepare(`ALTER TABLE users ADD COLUMN level INTEGER NOT NULL DEFAULT 1;`).run();
+  if (colMissing('users', 'streak_count'))  db.prepare(`ALTER TABLE users ADD COLUMN streak_count INTEGER NOT NULL DEFAULT 0;`).run();
+  if (colMissing('users', 'streak_ymd'))    db.prepare(`ALTER TABLE users ADD COLUMN streak_ymd TEXT;`).run();
 
   const cols = getColumns("users");
   if (!cols.has("reset_token"))     db.prepare(`ALTER TABLE users ADD COLUMN reset_token TEXT;`).run();
@@ -42,29 +51,32 @@ module.exports = function init() {
   if (!cols.has("locked_until"))    db.prepare(`ALTER TABLE users ADD COLUMN locked_until INTEGER NOT NULL DEFAULT 0;`).run();
 
   // 3) Trigger for updated_at
-  const triggers = db.prepare(
-    `SELECT name FROM sqlite_master WHERE type='trigger' AND tbl_name='users';`
-  ).all().map(r => r.name);
+  // NOTE: this trigger does an UPDATE inside AFTER UPDATE. That works on most SQLite configs
+  // (recursive triggers are off by default) but if you see recursion or unexpected behaviour,
+  // remove this trigger and update updated_at inside your application update queries instead.
+  const triggers = db.prepare(`SELECT name FROM sqlite_master WHERE type='trigger' AND tbl_name='users';`).all().map(r => r.name);
   if (!triggers.includes("trg_users_updated")) {
-    db.prepare(`
-      CREATE TRIGGER trg_users_updated
-      AFTER UPDATE ON users
-      FOR EACH ROW
-      BEGIN
-        UPDATE users SET updated_at = datetime('now') WHERE id = NEW.id;
-      END;
-    `).run();
+    try {
+      db.prepare(`
+        CREATE TRIGGER trg_users_updated
+        AFTER UPDATE ON users
+        FOR EACH ROW
+        BEGIN
+          UPDATE users SET updated_at = datetime('now') WHERE id = NEW.id;
+        END;
+      `).run();
+    } catch (e) {
+      console.warn("Could not create trg_users_updated trigger:", e.message || e);
+    }
   }
 
-  // 4) Helpful index for reset_token lookups
-  const indexes = db.prepare(
-    `SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='users';`
-  ).all().map(r => r.name);
+  // 4) Index for reset_token lookups
+  const indexes = db.prepare(`SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='users';`).all().map(r => r.name);
   if (!indexes.includes("idx_users_reset_token")) {
-    db.prepare(`CREATE INDEX idx_users_reset_token ON users(reset_token);`).run();
+    try { db.prepare(`CREATE INDEX idx_users_reset_token ON users(reset_token);`).run(); } catch (e) { /* ignore */ }
   }
 
-  // 5) Other tables (ledger, tasks, listings, transactions)
+  // 5) Points ledger
   db.prepare(`
     CREATE TABLE IF NOT EXISTS points_ledger(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -75,7 +87,10 @@ module.exports = function init() {
       created_at TEXT NOT NULL
     )
   `).run();
+  // Index for ledger
+  try { db.prepare(`CREATE INDEX IF NOT EXISTS idx_points_ledger_user ON points_ledger(user_id);`).run(); } catch(e){}
 
+  // 6) Tasks / user tasks
   db.prepare(`
     CREATE TABLE IF NOT EXISTS task_catalog(
       code TEXT PRIMARY KEY,
@@ -95,6 +110,7 @@ module.exports = function init() {
     )
   `).run();
 
+  // 7) Listings / transactions
   db.prepare(`
     CREATE TABLE IF NOT EXISTS listings(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -107,6 +123,11 @@ module.exports = function init() {
     )
   `).run();
 
+  // Add columns to listings safely if missing
+  if (colMissing('listings', 'description')) db.prepare(`ALTER TABLE listings ADD COLUMN description TEXT;`).run();
+  if (colMissing('listings', 'photos'))      db.prepare(`ALTER TABLE listings ADD COLUMN photos TEXT;`).run();
+  try { db.prepare(`CREATE INDEX IF NOT EXISTS idx_listings_user ON listings(user_id);`).run(); } catch(e){}
+
   db.prepare(`
     CREATE TABLE IF NOT EXISTS transactions(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -118,7 +139,8 @@ module.exports = function init() {
     )
   `).run();
 
-   db.prepare(`
+  // 8) Uploads table
+  db.prepare(`
     CREATE TABLE IF NOT EXISTS uploads (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER,
@@ -131,39 +153,37 @@ module.exports = function init() {
     )
   `).run();
 
-  // Ensure uploads table has claimed_by and claimed_at
-  try {
-    db.prepare("ALTER TABLE uploads ADD COLUMN claimed_by INTEGER").run();
-  } catch (e) {
-    if (!String(e).includes("duplicate column")) throw e;
-  }
+  // Add columns to uploads if missing
+  if (colMissing('uploads', 'claimed_by')) db.prepare(`ALTER TABLE uploads ADD COLUMN claimed_by INTEGER;`).run();
+  if (colMissing('uploads', 'claimed_at')) db.prepare(`ALTER TABLE uploads ADD COLUMN claimed_at TEXT;`).run();
+  if (colMissing('uploads', 'quality'))    db.prepare(`ALTER TABLE uploads ADD COLUMN quality TEXT;`).run();
+  try { db.prepare(`CREATE INDEX IF NOT EXISTS idx_uploads_user ON uploads(user_id);`).run(); } catch(e){}
 
-  try {
-    db.prepare("ALTER TABLE uploads ADD COLUMN claimed_at TEXT").run();
-  } catch (e) {
-    if (!String(e).includes("duplicate column")) throw e;
-  }
-
-  // Ensure uploads table has quality column
-  try {
-    db.prepare("ALTER TABLE uploads ADD COLUMN quality TEXT").run();
-  } catch (e) {
-    if (!String(e).includes("duplicate column")) throw e;
-  }
-
-
-
-  // --- seed tasks ---
+  // 9) Seed task_catalog rows (safe idempotent insert)
   const seed = db.prepare(`INSERT OR IGNORE INTO task_catalog(code,title,gp,daily_limit) VALUES (?,?,?,?)`);
   seed.run('LEARN_20',   'Study with AI for 20 mins',          75,  1);
   seed.run('QUIZ_5',     'Finish 5-question quiz',             50,  2);
   seed.run('UPLOAD_NOTE','Upload handwritten notes',          150,  3);
   seed.run('LIST_BOOK',  'List a book for sharing',           200,  2);
   seed.run('DONATION_OK','Successful donation/exchange',      300,  null);
-  // backend/init.js  (ADD these near your other colMissing checks)
-if (colMissing('listings', 'description')) db.prepare(`ALTER TABLE listings ADD COLUMN description TEXT`).run();
-if (colMissing('listings', 'photos'))      db.prepare(`ALTER TABLE listings ADD COLUMN photos TEXT`).run();
 
+  // 10) Create an initial admin user if no users exist (local dev convenience)
+  try {
+    const r = db.prepare("SELECT count(1) as cnt FROM users").get();
+    const userCount = r ? r.cnt : 0;
+    if (!userCount) {
+      const bcrypt = require("bcrypt");
+      const password = "admin123";
+      const hash = bcrypt.hashSync(password, 10);
+      db.prepare(`
+        INSERT INTO users (email, full_name, password_hash, role, created_at, updated_at)
+        VALUES (?,?,?,?,datetime('now'), datetime('now'))
+      `).run("admin@example.com", "Local Admin", hash, "admin");
+      console.log("Created initial admin user: admin@example.com / admin123 (change immediately in production).");
+    }
+  } catch (e) {
+    console.warn("Could not seed admin user:", e.message || e);
+  }
 
   console.log("✅ Database initialized for profile/points/sharing.");
 };
