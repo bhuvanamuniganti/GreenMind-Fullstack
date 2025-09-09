@@ -1,3 +1,4 @@
+// backend/routes/auth.js
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -10,6 +11,8 @@ const nowIso = () => new Date().toISOString();
 // ---------------- Register ----------------
 router.post("/register", async (req, res) => {
   try {
+    console.log("➡️ /api/auth/register body:", req.body);
+
     const { email, full_name, password } = registerSchema.parse(req.body);
 
     const exists = db.prepare("SELECT id FROM users WHERE email = ?").get(email);
@@ -29,9 +32,9 @@ router.post("/register", async (req, res) => {
 
     const token = jwt.sign({ sub: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: "7d" });
     res.cookie("token", token, { httpOnly: true, sameSite: "lax" });
-    res.status(201).json(user);
+    res.status(201).json({ ...user, token });
   } catch (e) {
-    console.error(e);
+    console.error("Register error:", e);
     res.status(400).json({ error: "Invalid input" });
   }
 });
@@ -39,6 +42,8 @@ router.post("/register", async (req, res) => {
 // ---------------- Login ----------------
 router.post("/login", async (req, res) => {
   try {
+    console.log("➡️ /api/auth/login body:", req.body);
+
     const { email, password } = loginSchema.parse(req.body);
 
     const user = db.prepare("SELECT * FROM users WHERE email = ?").get(email);
@@ -50,9 +55,9 @@ router.post("/login", async (req, res) => {
     const token = jwt.sign({ sub: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: "7d" });
     res.cookie("token", token, { httpOnly: true, sameSite: "lax" });
 
-    res.json({ id: user.id, email: user.email, full_name: user.full_name });
+    res.json({ id: user.id, email: user.email, full_name: user.full_name, token });
   } catch (e) {
-    console.error(e);
+    console.error("Login error:", e);
     res.status(400).json({ error: "Invalid input" });
   }
 });
@@ -65,13 +70,14 @@ router.post("/logout", (req, res) => {
 
 // ---------------- Get Current User ----------------
 router.get("/me", (req, res) => {
-  const token = req.cookies.token || req.headers.authorization?.split(" ")[1];
+  const token = req.cookies?.token || req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(401).json({ error: "No token provided" });
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     res.json({ user: decoded });
-  } catch {
+  } catch (err) {
+    console.error("Token verify error:", err);
     res.status(401).json({ error: "Invalid token" });
   }
 });

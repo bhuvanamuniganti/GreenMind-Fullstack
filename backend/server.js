@@ -20,7 +20,29 @@ const practiceImageRoutes = require("./routes/practiceImage"); // 👈 import he
 const app = express();
 
 // 2) Middleware
-app.use(cors({ origin: process.env.CLIENT_ORIGIN || "http://localhost:3000", credentials: true }));
+//app.use(cors({ origin: process.env.CLIENT_ORIGIN || "http://localhost:3001", credentials: true }));
+// 2) Middleware
+const isDev = process.env.NODE_ENV !== "production";
+
+// In dev: allow all localhost ports
+// In prod: only allow CLIENT_ORIGIN from .env
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true); // allow curl/Postman
+
+    if (isDev && /^http:\/\/localhost:\d+$/.test(origin)) {
+      return cb(null, true);
+    }
+
+    if (!isDev && process.env.CLIENT_ORIGIN && origin === process.env.CLIENT_ORIGIN) {
+      return cb(null, true);
+    }
+
+    return cb(new Error("Not allowed by CORS"));
+  },
+  credentials: true,
+}));
+
 app.use(express.json());
 app.use(cookieParser());
 
