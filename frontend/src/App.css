@@ -477,13 +477,26 @@ h3{font-size:1.06rem;margin:0 0 8px;font-weight:800}
   flex: 1; 
   min-width: 160px;
 }
+/* Hero Card */
 .hero-card {
-  width: 420px;
-  height: 280px;
-  margin-left: auto;
+  width: 100%;
+  max-width: 520px;
+  aspect-ratio: 16 / 9;   /* keeps consistent ratio, removes need for fixed height */
+  margin: 14px auto 0;
   position: relative;
   overflow: hidden;
+  border-radius: 12px;
 }
+
+/* Hero Card Image */
+.hero-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;       /* fill the container, crop if needed */
+  object-position: center; /* center the image nicely */
+  display: block;
+}
+
 
 /* override for medium & small devices */
 @media (max-width: 900px) {
