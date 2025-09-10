@@ -16,18 +16,24 @@ export default function TranslatorSection() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:4000"}/api/learning/analyze`), {
-        method: "POST",
-        body: formData,
-      });
+      const res = await fetch(
+        `${process.env.REACT_APP_API_URL || "http://localhost:4000"}/api/learning/analyze`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
       const data = await res.json();
       setText(data.result);
     } else {
-      const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:4000"}/api/learning/${endpoint}`), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, targetLang: lang }),
-      });
+      const res = await fetch(
+        `${process.env.REACT_APP_API_URL || "http://localhost:4000"}/api/learning/${endpoint}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, targetLang: lang }),
+        }
+      );
       const data = await res.json();
       setter(data.result);
     }
@@ -43,11 +49,14 @@ export default function TranslatorSection() {
   // === Play Audio ===
   const playAudio = async (content) => {
     try {
-      const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:4000"}/api/learning/tts`), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: content }),
-      });
+      const res = await fetch(
+        `${process.env.REACT_APP_API_URL || "http://localhost:4000"}/api/learning/tts`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: content }),
+        }
+      );
 
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -82,11 +91,14 @@ export default function TranslatorSection() {
   // === Download Audio ===
   const downloadAudio = async (content, filename) => {
     try {
-      const res = await fetch(`${process.env.REACT_APP_API_URL || "http://localhost:4000"}/api/learning/tts`), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: content }),
-      });
+      const res = await fetch(
+        `${process.env.REACT_APP_API_URL || "http://localhost:4000"}/api/learning/tts`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: content }),
+        }
+      );
 
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -143,7 +155,7 @@ export default function TranslatorSection() {
           📸 Analyze
         </button>
 
-        <button onClick={clearAll} className="translator-btn danger" style ={{backgroundColor:"Red", color:"White"}}>
+        <button onClick={clearAll} className="translator-btn danger" style={{ backgroundColor: "Red", color: "White" }}>
           ❌ Clear
         </button>
       </div>
