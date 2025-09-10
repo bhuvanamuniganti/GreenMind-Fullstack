@@ -140,13 +140,13 @@ function Hero({ openAuth }) {
       />
       <div className="container hero-grid" style={{ position: "relative", zIndex: 1 }}>
         <div className="hero-glass glass" style={{ textAlign: "center" }}>
-          <h1 id="hero-title">Smart Learning & Respectful Sharing</h1>
+          <h1 id="hero-title">Smart Learning & Smart Sharing</h1>
           <p className="sub">
-            Turn any textbook page or note into personalised practice and find local study essentials — in Telugu, Hindi or English.
+            Turn any textbook page or note into personalised practice and find local study essentials.
           </p>
 
           <ul className="badges" aria-label="Highlights" style={{ justifyContent: "center" }}>
-            <li>🗣️ Telugu • Hindi • English</li>
+            <li>🗣️ Supports All Indian Languages</li>
             <li>🔄 Works Offline & Online</li>
             <li>🌱 Community Sharing</li>
           </ul>
