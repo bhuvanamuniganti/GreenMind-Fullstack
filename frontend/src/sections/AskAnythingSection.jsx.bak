@@ -1,19 +1,17 @@
-import { API_BASE } from '../api';
-// src/sections/MathTutorSection.jsx
+// src/sections/AskAnythingSection.jsx
 import { useState, useEffect, useRef } from "react";
 import jsPDF from "jspdf";
 
-export default function MathTutorSection() {
+export default function AskAnythingSection() {
   const [text, setText] = useState("");
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
-  const [solution, setSolution] = useState("");
-  const [similar, setSimilar] = useState("");
+  const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
 
-  const fileInputRef = useRef(null);
   const mountedRef = useRef(true);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -23,7 +21,7 @@ export default function MathTutorSection() {
     };
   }, [preview]);
 
-  // Small animated button wrapper to give click feedback
+  // AnimatedButton gives visual feedback on click
   function AnimatedButton({ onClick, children, className = "", disabled = false, style = {} }) {
     const [anim, setAnim] = useState(false);
 
@@ -38,7 +36,7 @@ export default function MathTutorSection() {
     };
 
     const animStyle = anim
-      ? { transform: "scale(0.98)", transition: "transform 140ms ease-out" }
+      ? { transform: "scale(0.98)", transition: "transform 120ms ease-out" }
       : { transform: "scale(1)", transition: "transform 160ms ease-out" };
 
     const disabledStyle = disabled ? { opacity: 0.55, cursor: "not-allowed" } : {};
@@ -55,6 +53,61 @@ export default function MathTutorSection() {
     );
   }
 
+  // === OCR for image ===
+  const analyzeImage = async () => {
+    if (!file) return;
+    setAnalyzing(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("http://localhost:4000/api/learning/analyze", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`Analyze failed: ${res.status} ${res.statusText} ${txt}`);
+      }
+      const data = await res.json();
+      if (!mountedRef.current) return;
+      setText(data.result || "");
+    } catch (err) {
+      console.error("❌ Analyze error:", err);
+      setText((p) => p || `⚠️ Analyze failed: ${err?.message || "Unknown error"}`);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  // === Ask Anything ===
+  const handleAsk = async () => {
+    if (!text.trim()) {
+      alert("⚠️ Please enter a question or upload an image.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch("http://localhost:4000/api/learning/ask-anything", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`Ask failed: ${res.status} ${res.statusText} ${txt}`);
+      }
+      const data = await res.json();
+      if (!mountedRef.current) return;
+      setAnswer(data.result || "⚠️ No response generated.");
+    } catch (err) {
+      console.error("❌ Ask Anything fetch failed:", err);
+      setAnswer("⚠️ Error getting response.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // === Download PDF ===
   const downloadPDF = (title, content) => {
     const doc = new jsPDF();
@@ -68,78 +121,15 @@ export default function MathTutorSection() {
     doc.save(`${title}.pdf`);
   };
 
-  // === OCR ===
-  const analyzeImage = async () => {
-    if (!file) return;
-    setAnalyzing(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file); // backend expects "file"
-      const res = await fetch(`${API_BASE}/api/learning/analyze`, {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      if (!mountedRef.current) return;
-      setText(data.result || "");
-    } catch (err) {
-      console.error("❌ Analyze error:", err);
-      setText((prev) => prev || `⚠️ Analyze failed: ${err?.message || "Unknown error"}`);
-    } finally {
-      setAnalyzing(false);
-    }
-  };
-
-  // === Solve Math ===
-  const handleSolve = async () => {
-    if (!text.trim()) {
-      alert("⚠️ Please enter or upload a math problem first.");
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_BASE}/api/learning/math-tutor`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
-      });
-      const data = await res.json();
-      setSolution(data.result || "⚠️ No solution generated.");
-    } catch (err) {
-      console.error("❌ Math tutor fetch failed:", err);
-      setSolution("⚠️ Error solving the problem.");
-    }
-    setLoading(false);
-  };
-
-  // === Similar Questions ===
-  const handleSimilar = async () => {
-    if (!text.trim()) {
-      alert("⚠️ Please enter or upload a math problem first.");
-      return;
-    }
-    try {
-      const res = await fetch(`${API_BASE}/api/learning/math-similar`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
-      });
-      const data = await res.json();
-      setSimilar(data.result || "⚠️ No similar questions generated.");
-    } catch (err) {
-      console.error("❌ Math similar fetch failed:", err);
-      setSimilar("⚠️ Error generating similar questions.");
-    }
-  };
-
   // === Clear ===
   const clearAll = () => {
     setText("");
+    setAnswer("");
     setFile(null);
-    if (preview) URL.revokeObjectURL(preview);
-    setPreview(null);
-    setSolution("");
-    setSimilar("");
+    if (preview) {
+      URL.revokeObjectURL(preview);
+      setPreview(null);
+    }
   };
 
   const handleFileChange = (e) => {
@@ -148,20 +138,25 @@ export default function MathTutorSection() {
     if (preview) URL.revokeObjectURL(preview);
     setFile(selectedFile);
     setPreview(URL.createObjectURL(selectedFile));
+    // keep focus on textarea
+    setTimeout(() => {
+      const ta = document.querySelector(".translator-textarea");
+      if (ta) ta.focus();
+    }, 20);
   };
 
   const canAnalyze = !!file && !analyzing;
 
   return (
     <div className="translator-container">
-      <h2 className="translator-title">📐 Math Tutor</h2>
+      <h2 className="translator-title">💬 Ask Anything</h2>
 
-      {/* Input wrapper with image overlay bottom-left */}
+      {/* Input area + overlayed preview bottom-left */}
       <div style={{ position: "relative", marginBottom: 12 }}>
         <textarea
           className="translator-textarea"
           rows="4"
-          placeholder="Type a math problem (e.g., Solve 2x + 5 = 15)"
+          placeholder="Ask me anything (or upload an image)..."
           value={text}
           onChange={(e) => setText(e.target.value)}
           style={{ width: "100%", boxSizing: "border-box" }}
@@ -171,7 +166,7 @@ export default function MathTutorSection() {
           <div
             style={{
               position: "absolute",
-              left: 12,   // ⬅️ Changed to bottom-left
+              left: 12,
               bottom: 12,
               background: "rgba(255,255,255,0.98)",
               padding: 6,
@@ -200,6 +195,10 @@ export default function MathTutorSection() {
                   URL.revokeObjectURL(preview);
                   setPreview(null);
                 }
+                setTimeout(() => {
+                  const ta = document.querySelector(".translator-textarea");
+                  if (ta) ta.focus();
+                }, 20);
               }}
               style={{
                 marginLeft: 8,
@@ -222,15 +221,15 @@ export default function MathTutorSection() {
       </div>
 
       {/* File Upload + Analyze + Clear */}
-      <div style={{ margin: "10px 0", display: "flex", gap: "12px" }}>
-        <label className="translator-btn primary">
+      <div style={{ margin: "10px 0", display: "flex", gap: "12px", alignItems: "center" }}>
+        <label className="translator-btn primary" style={{ position: "relative", overflow: "hidden" }}>
           📂 Upload Image
           <input
+            ref={fileInputRef}
             type="file"
             accept="image/*"
             style={{ display: "none" }}
             onChange={handleFileChange}
-            ref={fileInputRef}
           />
         </label>
 
@@ -243,46 +242,29 @@ export default function MathTutorSection() {
         </AnimatedButton>
       </div>
 
-      {/* Action Buttons */}
-      <div style={{ display: "flex", gap: "12px", marginBottom: "20px" }}>
-        <AnimatedButton onClick={handleSolve} className="translator-btn primary" disabled={loading}>
-          {loading ? "Solving..." : "Solve Problem"}
-        </AnimatedButton>
-        <AnimatedButton onClick={handleSimilar} className="translator-btn secondary">
-          🔄 Similar Questions
-        </AnimatedButton>
-      </div>
+      {/* Ask Button */}
+      <AnimatedButton onClick={handleAsk} className="translator-btn primary" disabled={loading}>
+        {loading ? "Thinking..." : "Ask"}
+      </AnimatedButton>
 
-      {/* Outputs */}
-      {solution && (
-        <div className="ai-output">
-          <h4>📊 Step-by-Step Solution</h4>
+      {/* Answer */}
+      {answer && (
+        <div className="ai-output" style={{ marginTop: "20px" }}>
+          <h4>🤖 Answer</h4>
           <div className="scroll-box">
-            {solution.split("\n").map((line, i) => (
+            {answer.split("\n").map((line, i) => (
               <p key={i}>{line}</p>
             ))}
           </div>
-          <AnimatedButton onClick={() => downloadPDF("Math Solution", solution)} className="translator-btn primary">
-            ⬇ Download Solution PDF
-          </AnimatedButton>
-        </div>
-      )}
-
-      {similar && (
-        <div className="ai-output">
-          <h4>🔄 Similar Practice Problems</h4>
-          <div className="scroll-box">
-            {similar.split("\n").map((line, i) => (
-              <p key={i}>{line}</p>
-            ))}
-          </div>
-          <AnimatedButton onClick={() => downloadPDF("Similar Questions", similar)} className="translator-btn primary">
-            ⬇ Download Questions PDF
+          <AnimatedButton
+            onClick={() => downloadPDF("AskAnything_Response", answer)}
+            className="translator-btn primary"
+            style={{ marginTop: "10px" }}
+          >
+            ⬇ Download Answer PDF
           </AnimatedButton>
         </div>
       )}
     </div>
   );
 }
-
-

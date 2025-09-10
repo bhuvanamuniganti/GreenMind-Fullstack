@@ -1,5 +1,4 @@
 import { useState, useRef } from "react";
-import { API_BASE } from '../api';
 
 export default function TranslatorSection() {
   const [text, setText] = useState("");
@@ -18,7 +17,7 @@ export default function TranslatorSection() {
       formData.append("file", file);
 
       const res = await fetch(
-        `${API_BASE}/api/learning/analyze`,
+        `${process.env.REACT_APP_API_URL || "http://localhost:4000"}/api/learning/analyze`,
         {
           method: "POST",
           body: formData,
@@ -28,7 +27,7 @@ export default function TranslatorSection() {
       setText(data.result);
     } else {
       const res = await fetch(
-        `${API_BASE}/api/learning/${endpoint}`,
+        `${process.env.REACT_APP_API_URL || "http://localhost:4000"}/api/learning/${endpoint}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -51,7 +50,7 @@ export default function TranslatorSection() {
   const playAudio = async (content) => {
     try {
       const res = await fetch(
-        `${API_BASE}/api/learning/tts`,
+        `${process.env.REACT_APP_API_URL || "http://localhost:4000"}/api/learning/tts`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -93,7 +92,7 @@ export default function TranslatorSection() {
   const downloadAudio = async (content, filename) => {
     try {
       const res = await fetch(
-        `${API_BASE}/api/learning/tts`,
+        `${process.env.REACT_APP_API_URL || "http://localhost:4000"}/api/learning/tts`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -240,5 +239,3 @@ export default function TranslatorSection() {
     </div>
   );
 }
-
-

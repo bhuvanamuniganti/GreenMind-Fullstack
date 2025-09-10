@@ -6,6 +6,7 @@ const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 
+// IMPORTS (must appear before usage)
 const initDb = require("./init");             // ensure tables/columns exist
 const authRoutes = require("./routes/auth");
 const appRoutes  = require("./routes/app");   // renamed from appe.js -> app.js
@@ -15,33 +16,53 @@ const aiTutorRoutes = require("./routes/aiTutor");
 const aiLearningRoutes = require("./routes/aiLearningRoutes");
 const practiceImageRoutes = require("./routes/practiceImage"); // 👈 import here
 
-
 // 1) Create app first
 const app = express();
 
-// 2) Middleware
-//app.use(cors({ origin: process.env.CLIENT_ORIGIN || "http://localhost:3001", credentials: true }));
-// 2) Middleware
 const isDev = process.env.NODE_ENV !== "production";
 
-// In dev: allow all localhost ports
-// In prod: only allow CLIENT_ORIGIN from .env
+
+
+// CORS: allow localhost in dev and CLIENT_ORIGIN in prod
+// DEV-friendly CORS: explicitly allow localhost/127.0.0.1 ports + the configured CLIENT_ORIGIN in prod
+// Also log incoming origin for debugging.
+app.use((req, res, next) => {
+  console.log("Incoming request Origin header:", req.headers.origin);
+  next();
+});
+
+// DEV + PROD allowed origins
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "https://greenmindaifullstack.netlify.app" // <--- add Netlify origin
+];
+
+if (!isDev && process.env.CLIENT_ORIGIN) {
+  // keep any existing CLIENT_ORIGIN too (optional)
+  if (!allowedOrigins.includes(process.env.CLIENT_ORIGIN)) {
+    allowedOrigins.push(process.env.CLIENT_ORIGIN);
+  }
+}
+
+
 app.use(cors({
-  origin: (origin, cb) => {
-    if (!origin) return cb(null, true); // allow curl/Postman
+  origin: (origin, callback) => {
+    // allow requests with no origin (curl, mobile apps, Postman)
+    if (!origin) return callback(null, true);
 
-    if (isDev && /^http:\/\/localhost:\d+$/.test(origin)) {
-      return cb(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
     }
 
-    if (!isDev && process.env.CLIENT_ORIGIN && origin === process.env.CLIENT_ORIGIN) {
-      return cb(null, true);
-    }
-
-    return cb(new Error("Not allowed by CORS"));
+    console.warn("Blocked by CORS, origin:", origin);
+    return callback(new Error("Not allowed by CORS"));
   },
   credentials: true,
 }));
+
 
 app.use(express.json());
 app.use(cookieParser());
@@ -61,5 +82,20 @@ app.use("/api/learning", aiLearningRoutes);
 app.use("/api", practiceImageRoutes); // 👈 now mounted in correct place
 
 // 5) Start server
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, "0.0.0.0", () => console.log(`✅ Server listening on ${PORT}`));
+const PORT = parseInt(process.env.PORT, 10) || 4000;
+// In dev prefer explicit localhost (helps Windows loopback/IPv6 issues), otherwise bind to 0.0.0.0
+const bindHost = isDev ? '127.0.0.1' : '0.0.0.0';
+
+
+const server = app.listen(PORT, bindHost, function () {
+  const a = server.address();
+  console.log(`✅ Server listening — address: ${a.address}, family: ${a.family}, port: ${a.port}`);
+});
+
+// graceful shutdown
+function shutdown(signal) {
+  console.log(`${signal} received — shutting down`);
+  server.close(() => process.exit(0));
+}
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));

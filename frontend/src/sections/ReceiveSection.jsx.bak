@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { API_BASE } from '../api';
 import axios from "axios";
 import html2canvas from "html2canvas";
 import { toast } from "react-toastify";
@@ -17,7 +16,7 @@ export default function ReceiveSection({ setMe }) {
   useEffect(() => {
     (async () => {
       try {
-        const res = await axios.get(`${API_BASE}/api/receive`, {
+        const res = await axios.get("http://localhost:4000/api/receive", {
           withCredentials: true,
         });
         setItems(res.data || []);
@@ -36,7 +35,7 @@ export default function ReceiveSection({ setMe }) {
   async function handleClaim(item) {
     try {
       await axios.post(
-        `${API_BASE}/api/receive/claim/${item.id}`,
+        `http://localhost:4000/api/receive/claim/${item.id}`,
         {},
         { withCredentials: true }
       );
@@ -48,7 +47,7 @@ export default function ReceiveSection({ setMe }) {
       // fetch certificate text (AI with fallback)
       try {
         const r = await axios.post(
-          `${API_BASE}/api/receive/thanks`,
+          "http://localhost:4000/api/receive/thanks",
           {
             userName: "You",
             itemTitle: item.title || "a resource",
@@ -260,7 +259,7 @@ export default function ReceiveSection({ setMe }) {
               }}
             >
               <img
-                src={`${API_BASE}${item.imageUrl}`}
+                src={`http://localhost:4000${item.imageUrl}`}
                 alt={item.title || "Item image"}
                 style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", display: "block" }}
                 loading="lazy"
@@ -289,6 +288,3 @@ export default function ReceiveSection({ setMe }) {
     </div>
   );
 }
-
-
-

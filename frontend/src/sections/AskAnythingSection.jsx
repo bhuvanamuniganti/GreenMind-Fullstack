@@ -1,3 +1,4 @@
+import { API_BASE } from '../api';
 // src/sections/AskAnythingSection.jsx
 import { useState, useEffect, useRef } from "react";
 import jsPDF from "jspdf";
@@ -60,7 +61,7 @@ export default function AskAnythingSection() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("http://localhost:4000/api/learning/analyze", {
+      const res = await fetch(`${API_BASE}/api/learning/analyze`, {
         method: "POST",
         body: formData,
       });
@@ -88,7 +89,7 @@ export default function AskAnythingSection() {
 
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:4000/api/learning/ask-anything", {
+      const res = await fetch(`${API_BASE}/api/learning/ask-anything`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
@@ -268,3 +269,5 @@ export default function AskAnythingSection() {
     </div>
   );
 }
+
+

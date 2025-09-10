@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { API_BASE } from '../api';
 
 /**
  * Updated OralRecorder:
@@ -360,7 +359,7 @@ export default function PracticeFromImageSection() {
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
       // update this URL to your deployed backend if needed
-      const res = await fetch(`${API_BASE}/api/practice-image/analyze`, {
+      const res = await fetch("http://localhost:4000/api/practice-image/analyze", {
         method: "POST",
         body: form,
         headers,
@@ -416,7 +415,7 @@ export default function PracticeFromImageSection() {
     const form = new FormData();
     // keep filename and mime consistent
     form.append("audio", new File([blob], "answer.webm", { type: blob.type || "audio/webm" }));
-    const r = await fetch(`${API_BASE}/api/practice-image/transcribe`, {
+    const r = await fetch("http://localhost:4000/api/practice-image/transcribe", {
       method: "POST",
       body: form,
       credentials: "include",
@@ -435,7 +434,7 @@ export default function PracticeFromImageSection() {
   async function gradeWrittenAll() {
     if (!payload) return;
     const userAnswers = payload.questions.map(q => ({ id: q.id, value: writtenAnswers[q.id] || "" }));
-    const r = await fetch(`${API_BASE}/api/practice-image/grade`, {
+    const r = await fetch("http://localhost:4000/api/practice-image/grade", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -450,7 +449,7 @@ export default function PracticeFromImageSection() {
   async function gradeOralOne(q) {
     const transcript = oralText[q.id] || "";
     if (!transcript) { alert("Please transcribe or type your answer first."); return; }
-    const r = await fetch(`${API_BASE}/api/practice/oral-grade`, {
+    const r = await fetch("http://localhost:4000/api/practice/oral-grade", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -476,7 +475,7 @@ export default function PracticeFromImageSection() {
     if (!payload) return;
     setLoading(true);
     try {
-      const r = await fetch(`${API_BASE}/api/practice-image/similar`, {
+      const r = await fetch("http://localhost:4000/api/practice-image/similar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -769,5 +768,3 @@ export default function PracticeFromImageSection() {
     </div>
   );
 }
-
-

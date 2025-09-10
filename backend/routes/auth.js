@@ -40,27 +40,61 @@ router.post("/register", async (req, res) => {
 });
 
 // ---------------- Login ----------------
+// ---------------- Login ----------------
 router.post("/login", async (req, res) => {
   try {
     console.log("➡️ /api/auth/login body:", req.body);
 
-    const { email, password } = loginSchema.parse(req.body);
+    // Attempt to parse (and catch schema errors)
+    let parsed;
+    try {
+      parsed = loginSchema.parse(req.body);
+      console.log("Parsed payload:", parsed);
+    } catch (pz) {
+      console.error("Login schema parse error:", pz && pz.errors ? pz.errors : pz);
+      return res.status(400).json({ error: "Invalid input (schema)" });
+    }
+
+    const { email, password } = parsed;
 
     const user = db.prepare("SELECT * FROM users WHERE email = ?").get(email);
-    if (!user) return res.status(401).json({ error: "Invalid email or password" });
+    console.log("DB user found:", !!user, user ? { id: user.id, email: user.email, hash_len: user.password_hash ? user.password_hash.length : 0 } : null);
 
-    const ok = await bcrypt.compare(password, user.password_hash);
-    if (!ok) return res.status(401).json({ error: "Invalid email or password" });
+    if (!user) {
+      console.log("Login failed: user not found");
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    let ok = false;
+    try {
+      ok = await bcrypt.compare(password, user.password_hash);
+    } catch (bcErr) {
+      console.error("bcrypt error:", bcErr);
+    }
+    console.log("bcrypt.compare result:", ok);
+
+    if (!ok) {
+      console.log("Login failed: bcrypt compare false");
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
 
     const token = jwt.sign({ sub: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: "7d" });
-    res.cookie("token", token, { httpOnly: true, sameSite: "lax" });
+    const cookieOptions = {
+      httpOnly: true,
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    };
+    res.cookie("token", token, cookieOptions);
 
+    console.log("Login success for user id:", user.id);
     res.json({ id: user.id, email: user.email, full_name: user.full_name, token });
   } catch (e) {
-    console.error("Login error:", e);
+    console.error("Login error (unexpected):", e);
     res.status(400).json({ error: "Invalid input" });
   }
 });
+
 
 // ---------------- Logout ----------------
 router.post("/logout", (req, res) => {

@@ -1,4 +1,3 @@
-import { API_BASE } from '../api';
 // src/sections/FlashCardSection.jsx
 import { useState, useRef } from "react";
 
@@ -64,7 +63,7 @@ export default function FlashCardSection() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch(`${API_BASE}/api/learning/analyze`, {
+      const res = await fetch("${process.env.REACT_APP_API_URL || "http://localhost:4000"}/api/learning/analyze", {
         method: "POST",
         body: formData,
       });
@@ -94,7 +93,7 @@ export default function FlashCardSection() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/learning/flashcards`, {
+      const res = await fetch("${process.env.REACT_APP_API_URL || "http://localhost:4000"}/api/learning/flashcards", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
@@ -377,5 +376,4 @@ export default function FlashCardSection() {
     </div>
   );
 }
-
 

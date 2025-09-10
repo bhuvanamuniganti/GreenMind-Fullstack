@@ -1,4 +1,3 @@
-import { API_BASE } from '../api';
 // src/sections/AiLearningStudio.jsx
 import { useState, useEffect, useRef } from "react";
 import jsPDF from "jspdf";
@@ -38,7 +37,7 @@ function AiLearningStudio() {
         // IMPORTANT: backend expects 'file' (keeps same as other working sections)
         formData.append("file", file);
 
-        const res = await fetch(`${API_BASE}/api/learning/analyze`, {
+        const res = await fetch(`http://localhost:4000/api/learning/analyze`, {
           method: "POST",
           body: formData,
         });
@@ -53,7 +52,7 @@ function AiLearningStudio() {
         setImageText(data.result || "");
         setInput(data.result || "");
       } else {
-        const res = await fetch(`${API_BASE}/api/learning/${endpoint}`, {
+        const res = await fetch(`http://localhost:4000/api/learning/${endpoint}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ text: input }),
@@ -369,6 +368,3 @@ function AiLearningStudio() {
 }
 
 export default AiLearningStudio;
-
-
-

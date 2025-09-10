@@ -19,13 +19,17 @@ export default function Login({ onSwitch } = {}) {
     setMsg("");
     setErrors({ email: false, password: false });
 
-    if (!form.email) {
+    const rawEmail = form.email || "";
+    const email = rawEmail.trim().toLowerCase();
+    const password = form.password || "";
+
+    if (!email) {
       setMsg("Enter an email");
       setErrors((p) => ({ ...p, email: true }));
       setLoading(false);
       return;
     }
-    if (!form.password) {
+    if (!password) {
       setMsg("Enter your password");
       setErrors((p) => ({ ...p, password: true }));
       setLoading(false);
@@ -33,15 +37,26 @@ export default function Login({ onSwitch } = {}) {
     }
 
     try {
-      console.log("Login: calling API with", form);
-      const out = await api("/api/auth/login", { method: "POST", body: form });
+      // clearer debug logging
+      console.log("Login: calling API with", { email, password: password ? "••••••" : "" });
+
+      const out = await api("/api/auth/login", {
+        method: "POST",
+        body: { email, password },
+      });
+
       console.log("Login success (frontend):", out);
 
-      if (out?.token) localStorage.setItem("token", out.token);
+      if (out?.token) {
+        localStorage.setItem("token", out.token);
+        // quick visual feedback while debugging
+        alert("Login successful — token saved. Redirecting to profile.");
+      }
 
       nav("/profile");
     } catch (err) {
       console.error("Login error (frontend):", err);
+      // show backend message if available
       setMsg(err?.data?.error || "Incorrect email or password.");
     } finally {
       setLoading(false);
@@ -63,6 +78,7 @@ export default function Login({ onSwitch } = {}) {
             onChange={onChange}
             required
             className={errors.email ? "invalid" : ""}
+            autoComplete="email"
           />
         </label>
 
@@ -75,11 +91,17 @@ export default function Login({ onSwitch } = {}) {
             onChange={onChange}
             required
             className={errors.password ? "invalid" : ""}
+            autoComplete="current-password"
           />
         </label>
 
         <div className="form-actions" style={{ marginTop: 20 }}>
-          <button className="btn primary" type="submit" disabled={loading} style={{ backgroundColor: "darkgreen" }}>
+          <button
+            className="btn primary"
+            type="submit"
+            disabled={loading}
+            style={{ backgroundColor: "darkgreen" }}
+          >
             {loading ? "Signing in…" : "Sign in"}
           </button>
 
@@ -93,7 +115,11 @@ export default function Login({ onSwitch } = {}) {
               Create account
             </button>
           ) : (
-            <Link className="btn primary" to="/register" style={{ marginLeft: 10, backgroundColor: "#e66a31ff" }}>
+            <Link
+              className="btn primary"
+              to="/register"
+              style={{ marginLeft: 10, backgroundColor: "#e66a31ff" }}
+            >
               Create account
             </Link>
           )}

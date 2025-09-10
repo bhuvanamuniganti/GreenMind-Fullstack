@@ -1,2 +1,5 @@
 
 backend/uploads/
+
+backend/uploads/*
+!backend/uploads/.gitkeep

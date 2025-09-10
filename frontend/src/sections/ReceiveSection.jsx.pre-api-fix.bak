@@ -36,7 +36,7 @@ export default function ReceiveSection({ setMe }) {
   async function handleClaim(item) {
     try {
       await axios.post(
-        `${API_BASE}/api/receive/claim/${item.id}`,
+        `${process.env.REACT_APP_API_URL || `${API_BASE}`}/api/receive/claim/${item.id}`,
         {},
         { withCredentials: true }
       );
@@ -289,6 +289,5 @@ export default function ReceiveSection({ setMe }) {
     </div>
   );
 }
-
 
 
