@@ -1005,3 +1005,20 @@ overflow: hidden;
   .node { position: static; width: 100%; max-width: 100%; margin: 12px 0; transform: none; }
   .node-top, .node-right, .node-left { top: auto; left: auto; right: auto; }
 }
+/* container that will show the image as background */
+.hero-grid .hero-image-card {
+  width: 100%;
+  max-width: 640px;
+  height: 360px;            /* fixed display height — adjust as needed */
+  border-radius: 12px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;   /* cover the container, preserve aspect ratio */
+  overflow: hidden;
+}
+
+/* if you currently have an <img> inside the card, hide it for this approach */
+.hero-grid .hero-image-card img {
+  display: none;
+}
+.hero-image-card { aspect-ratio: 16/9; height: auto; }
