@@ -11,6 +11,10 @@ export default function Register({ onSwitch } = {}) {
   const [msg, setMsg] = useState("");
   const [errors, setErrors] = useState({ name: false, email: false, password: false });
 
+  const [showPassword, setShowPassword] = useState(false);
+  const toggleShow = () => setShowPassword((s) => !s);
+
+
   const onChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
   async function onSubmit(e) {
@@ -80,9 +84,37 @@ export default function Register({ onSwitch } = {}) {
           <input type="email" name="email" value={form.email} onChange={onChange} required className={errors.email ? "invalid" : ""} />
         </label>
 
-        <label style={{ marginTop: 10 }}>
+        
+
+
+        <label style={{ marginTop: 10, position: "relative" }}>
           Password
-          <input type="password" name="password" value={form.password} onChange={onChange} required className={errors.password ? "invalid" : ""} />
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input
+              type={showPassword ? "text" : "password"}
+              name="password"
+              value={form.password}
+              onChange={onChange}
+              required
+              className={errors.password ? "invalid" : ""}
+              style={{ flex: 1 }}
+            />
+            <button
+              type="button"
+              onClick={toggleShow}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              style={{
+                padding: "8px 10px",
+                borderRadius: 8,
+                border: "1px solid rgba(0,0,0,0.08)",
+                background: "white",
+                cursor: "pointer",
+                fontWeight: 700
+              }}
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
+          </div>
         </label>
         <small style={{ color: "#4b5563" }}>Password must be at least 6 characters.</small>
 
