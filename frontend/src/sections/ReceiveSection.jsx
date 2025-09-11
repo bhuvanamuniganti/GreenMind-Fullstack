@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { API_BASE } from '../api';
+import { API_BASE } from "../api";
 import axios from "axios";
 import html2canvas from "html2canvas";
 import { toast } from "react-toastify";
@@ -8,6 +8,11 @@ export default function ReceiveSection({ setMe }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+
+  // Request form state
+  const [reqTitle, setReqTitle] = useState("");
+  const [reqDesc, setReqDesc] = useState("");
+  const [reqCategory, setReqCategory] = useState("");
 
   // certificate overlay
   const [showCert, setShowCert] = useState(false);
@@ -30,8 +35,6 @@ export default function ReceiveSection({ setMe }) {
     })();
   }, []);
 
-  if (loading) return <p>Loading…</p>;
-
   // claim and then show certificate
   async function handleClaim(item) {
     try {
@@ -42,8 +45,8 @@ export default function ReceiveSection({ setMe }) {
       );
 
       // remove from UI + deduct points
-      setItems(prev => prev.filter(x => x.id !== item.id));
-      if (setMe) setMe(p => ({ ...p, points: (p.points || 0) - 10 }));
+      setItems((prev) => prev.filter((x) => x.id !== item.id));
+      if (setMe) setMe((p) => ({ ...p, points: (p.points || 0) - 10 }));
 
       // fetch certificate text (AI with fallback)
       try {
@@ -52,7 +55,7 @@ export default function ReceiveSection({ setMe }) {
           {
             userName: "You",
             itemTitle: item.title || "a resource",
-            category: item.category || "Learning"
+            category: item.category || "Learning",
           },
           { withCredentials: true }
         );
@@ -65,12 +68,14 @@ export default function ReceiveSection({ setMe }) {
             `Thank you for receiving “${item.title || "a resource"}”. ` +
             `You helped reduce waste and support an affordable learning journey. ` +
             `Every small act like this inspires others to share and receive. 💚`,
-          hashtags: ["#ShareToLearn", "#ReduceWaste", "#GreenMindAI"]
+          hashtags: ["#ShareToLearn", "#ReduceWaste", "#GreenMindAI"],
         });
       }
+
       setShowCert(true);
       toast.success("Item claimed!");
-    } catch {
+    } catch (err) {
+      console.error("Claim failed", err);
       toast.error("⚠️ Could not claim item");
     }
   }
@@ -85,16 +90,34 @@ export default function ReceiveSection({ setMe }) {
     link.click();
   }
 
-  
+  // handle request submit
+  async function handleRequest(e) {
+    e?.preventDefault();
+    if (!reqTitle.trim()) { toast.error("Please enter a title"); return; }
+    try {
+      await axios.post(
+        `${API_BASE}/api/request`,
+        { title: reqTitle.trim(), description: reqDesc.trim(), category: reqCategory.trim() },
+        { withCredentials: true }
+      );
+      toast.success("✅ Request submitted!");
+      setReqTitle(""); setReqDesc(""); setReqCategory("");
+    } catch (err) {
+      console.error("Request submit failed", err);
+      toast.error("Could not submit request");
+    }
+  }
 
-  // filter only when text typed
-  const filtered = items.filter(item => {
+  if (loading) return <p>Loading…</p>;
+
+  // filter only when text typed (MOVE this *before* return to avoid 'filtered is not defined')
+  const filtered = items.filter((item) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     return (
-      item.title?.toLowerCase().includes(q) ||
-      item.description?.toLowerCase().includes(q) ||
-      item.category?.toLowerCase().includes(q)
+      (item.title || "").toLowerCase().includes(q) ||
+      (item.description || "").toLowerCase().includes(q) ||
+      (item.category || "").toLowerCase().includes(q)
     );
   });
 
@@ -113,7 +136,7 @@ export default function ReceiveSection({ setMe }) {
             alignItems: "center",
             justifyContent: "center",
             zIndex: 1000,
-            padding: 16
+            padding: 16,
           }}
         >
           <div style={{ width: "min(680px, 95vw)" }}>
@@ -128,90 +151,33 @@ export default function ReceiveSection({ setMe }) {
                   "radial-gradient(900px 500px at 120% 120%, #cffafe, transparent 60%)," +
                   "linear-gradient(135deg, #ffffff, #f8fafc)",
                 boxShadow: "0 20px 60px rgba(2,6,23,.25), inset 0 0 0 2px rgba(15,23,42,.07)",
-                overflow: "hidden"
+                overflow: "hidden",
               }}
             >
-              {/* decorative border */}
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 10,
-                  borderRadius: 20,
-                  border: "2px dashed rgba(2,6,23,.15)",
-                  pointerEvents: "none"
-                }}
-              />
+              <div style={{ position: "absolute", inset: 10, borderRadius: 20, border: "2px dashed rgba(2,6,23,.15)", pointerEvents: "none" }} />
 
-              {/* header */}
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: "50%",
-                    background:
-                      "conic-gradient(from 0deg, #22c55e, #06b6d4, #8b5cf6, #22c55e)",
-                    filter: "saturate(1.1)",
-                    display: "grid",
-                    placeItems: "center",
-                    color: "white",
-                    fontWeight: 800,
-                    boxShadow: "0 10px 20px rgba(2,6,23,.25)"
-                  }}
-                >
+                <div style={{ width: 44, height: 44, borderRadius: "50%", background: "conic-gradient(from 0deg, #22c55e, #06b6d4, #8b5cf6, #22c55e)", filter: "saturate(1.1)", display: "grid", placeItems: "center", color: "white", fontWeight: 800, boxShadow: "0 10px 20px rgba(2,6,23,.25)" }}>
                   🌿
                 </div>
                 <div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a" }}>
-                    {cert?.title || "Certificate of Appreciation"}
-                  </div>
-                  <div style={{ fontSize: 13, color: "#334155" }}>
-                    {cert?.subtitle || "For Supporting Smart Learning & Reuse"}
-                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a" }}>{cert?.title || "Certificate of Appreciation"}</div>
+                  <div style={{ fontSize: 13, color: "#334155" }}>{cert?.subtitle || "For Supporting Smart Learning & Reuse"}</div>
                 </div>
               </div>
 
-              {/* body */}
-              <div style={{ marginTop: 18, fontSize: 15.5, lineHeight: 1.6, color: "#0f172a", whiteSpace: "pre-wrap" }}>
-                {cert?.body}
-              </div>
+              <div style={{ marginTop: 18, fontSize: 15.5, lineHeight: 1.6, color: "#0f172a", whiteSpace: "pre-wrap" }}>{cert?.body}</div>
 
-              {/* tags */}
               {Array.isArray(cert?.hashtags) && cert.hashtags.length > 0 && (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 16 }}>
                   {cert.hashtags.map((t, i) => (
-                    <span key={i}
-                      style={{
-                        fontSize: 12,
-                        padding: "6px 10px",
-                        borderRadius: 999,
-                        background: "#f1f5f9",
-                        color: "#334155",
-                        border: "1px solid #e2e8f0"
-                      }}
-                    >
-                      {t}
-                    </span>
+                    <span key={i} style={{ fontSize: 12, padding: "6px 10px", borderRadius: 999, background: "#f1f5f9", color: "#334155", border: "1px solid #e2e8f0" }}>{t}</span>
                   ))}
                 </div>
               )}
 
-              {/* footer ribbon */}
-              <div
-                style={{
-                  marginTop: 22,
-                  paddingTop: 14,
-                  borderTop: "1px solid rgba(2,6,23,.06)",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 12,
-                  flexWrap: "wrap"
-                }}
-              >
-                <div style={{ fontSize: 12.5, color: "#334155" }}>
-                  Thank you for inspiring others to **share & receive**.
-                </div>
+              <div style={{ marginTop: 22, paddingTop: 14, borderTop: "1px solid rgba(2,6,23,.06)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <div style={{ fontSize: 12.5, color: "#334155" }}>Thank you for inspiring others to **share & receive**.</div>
                 <div style={{ display: "flex", gap: 10 }}>
                   <button className="btn primary" onClick={downloadCertPNG}>⬇ Download PNG</button>
                   <button className="btn ghost" onClick={() => setShowCert(false)}>Close</button>
@@ -224,53 +190,19 @@ export default function ReceiveSection({ setMe }) {
 
       {/* Search */}
       <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
-        <input
-          type="text"
-          placeholder="Search items…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{ flex: 1, minWidth: 220, padding: 8, borderRadius: 6 }}
-        />
-        <button className="btn" onClick={() => setSearch("")} style ={{backgroundColor:"Red", color:"White"}}>Clear</button>
+        <input type="text" placeholder="Search items…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ flex: 1, minWidth: 220, padding: 8, borderRadius: 6 }} />
+        <button className="btn" onClick={() => setSearch("")} style={{ backgroundColor: "Red", color: "White" }}>Clear</button>
       </div>
 
       {/* Items grid */}
-      <div
-        className="cards-grid"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-          gap: 16,
-        }}
-      >
+      <div className="cards-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
         {filtered.map((item) => (
           <div key={item.id} className="card glass">
-            {/* Image area (full fit) */}
-            <div
-              style={{
-                width: "100%",
-                height: 220,
-                background: "#f8fafc",
-                borderRadius: 8,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                overflow: "hidden",
-                border: "1px solid #e5e7eb",
-              }}
-            >
-              <img
-                src={`${API_BASE}${item.imageUrl}`}
-                alt={item.title || "Item image"}
-                style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", display: "block" }}
-                loading="lazy"
-              />
+            <div style={{ width: "100%", height: 220, background: "#f8fafc", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", border: "1px solid #e5e7eb" }}>
+              <img src={`${API_BASE}${item.imageUrl}`} alt={item.title || "Item image"} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", display: "block" }} loading="lazy" />
             </div>
 
-            {/* Title */}
-            <h3 className="receive-title" title={item.title} style={{ margin: "10px 0 6px" }}>
-              {item.title || "Untitled"}
-            </h3>
+            <h3 className="receive-title" title={item.title} style={{ margin: "10px 0 6px" }}>{item.title || "Untitled"}</h3>
 
             <p style={{ marginTop: 0 }}>{item.description}</p>
             <p><strong>Category:</strong> {item.category}</p>
@@ -278,17 +210,26 @@ export default function ReceiveSection({ setMe }) {
             <span className="badge">By {item.uploader_name}</span>
 
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-              <button className="btn primary" onClick={() => handleClaim(item)}>
-                Claim
-              </button>
+              <button className="btn primary" onClick={() => handleClaim(item)}>Claim</button>
             </div>
           </div>
         ))}
         {filtered.length === 0 && <p>No items match your search.</p>}
       </div>
+
+      {/* Request Item Section */}
+      <div className="request-form glass" style={{ marginTop: 30, padding: 20 }}>
+        <h3>🙋 Didn’t find what you need? Request an item</h3>
+        <form onSubmit={handleRequest} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <input type="text" placeholder="Item title" value={reqTitle} onChange={(e) => setReqTitle(e.target.value)} required style={{ padding: 8, borderRadius: 6 }} />
+          <textarea placeholder="Description" value={reqDesc} onChange={(e) => setReqDesc(e.target.value)} rows={3} style={{ padding: 8, borderRadius: 6 }} />
+          <input type="text" placeholder="Category" value={reqCategory} onChange={(e) => setReqCategory(e.target.value)} style={{ padding: 8, borderRadius: 6 }} />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="btn primary" type="submit">Submit Request</button>
+            <button className="btn" type="button" onClick={() => { setReqTitle(""); setReqDesc(""); setReqCategory(""); }}>Clear</button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
-
-
-

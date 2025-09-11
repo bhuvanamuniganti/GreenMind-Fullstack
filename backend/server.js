@@ -15,6 +15,7 @@ const receiveRoutes = require("./routes/receive");
 const aiTutorRoutes = require("./routes/aiTutor");
 const aiLearningRoutes = require("./routes/aiLearningRoutes");
 const practiceImageRoutes = require("./routes/practiceImage"); // 👈 import here
+const requestRoutes = require("./routes/request");
 
 // 1) Create app first
 const app = express();
@@ -88,6 +89,7 @@ app.use("/api", receiveRoutes);
 app.use("/api/ai-tutor", aiTutorRoutes);
 app.use("/api/learning", aiLearningRoutes);
 app.use("/api", practiceImageRoutes); // 👈 now mounted in correct place
+app.use("/api", requestRoutes);
 
 // 5) Start server
 const PORT = parseInt(process.env.PORT, 10) || 4000;

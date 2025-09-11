@@ -1,6 +1,7 @@
 // backend/init.js
 const db = require("./db");
 
+
 // Helper: get columns and check missing
 function getColumns(table) {
   const rows = db.prepare(`PRAGMA table_info(${table});`).all();
@@ -37,6 +38,18 @@ module.exports = function init() {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `).run();
+
+  db.prepare(`
+  CREATE TABLE IF NOT EXISTS requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    description TEXT,
+    category TEXT,
+    user_id INTEGER,           -- optional if you want to track who requested
+    created_at TEXT,
+    updated_at TEXT
+  )
+`).run();
 
   // 2) Add missing columns to users
   if (colMissing('users', 'points'))        db.prepare(`ALTER TABLE users ADD COLUMN points INTEGER NOT NULL DEFAULT 0;`).run();
