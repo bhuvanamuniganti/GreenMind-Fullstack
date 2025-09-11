@@ -80,6 +80,8 @@ export default function ReceiveSection({ setMe }) {
     }
   }
 
+  
+
   // download the certificate as PNG
   async function downloadCertPNG() {
     if (!certRef.current) return;
@@ -198,9 +200,7 @@ export default function ReceiveSection({ setMe }) {
       <div className="cards-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
         {filtered.map((item) => (
           <div key={item.id} className="card glass">
-            <div style={{ width: "100%", height: 220, background: "#f8fafc", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", border: "1px solid #e5e7eb" }}>
-              <img src={`${API_BASE}${item.imageUrl}`} alt={item.title || "Item image"} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", display: "block" }} loading="lazy" />
-            </div>
+          
 
             <h3 className="receive-title" title={item.title} style={{ margin: "10px 0 6px" }}>{item.title || "Untitled"}</h3>
 
