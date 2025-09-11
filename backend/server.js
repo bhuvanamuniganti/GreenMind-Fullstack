@@ -67,6 +67,14 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
+// cookie options helper
+const cookieOptions = {
+  httpOnly: true,
+  sameSite: isDev ? "lax" : "none", // none required for cross-site cookies
+  secure: !isDev,                   // secure true in production
+  maxAge: 7 * 24 * 60 * 60 * 1000,  // 7 days
+};
+
 // 3) Init DB after middleware
 initDb();
 

@@ -98,7 +98,7 @@ router.post("/login", async (req, res) => {
 
 // ---------------- Logout ----------------
 router.post("/logout", (req, res) => {
-  res.clearCookie("token");
+  res.clearCookie("token", { sameSite: cookieOptions.sameSite, secure: cookieOptions.secure });
   res.json({ ok: true });
 });
 
