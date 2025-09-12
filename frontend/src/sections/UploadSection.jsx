@@ -29,7 +29,7 @@ export default function UploadSection({ setMe }) {
         setResult(null);
         setFile(null);
         setPreview(null);
-        toast.error("⚠️ Upload rejected: Low-quality or invalid image.");
+        toast.error("⚠️ Upload rejected: Low-quality");
         return;
       }
 
