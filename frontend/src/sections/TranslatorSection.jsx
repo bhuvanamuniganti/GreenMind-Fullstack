@@ -127,16 +127,72 @@ export default function TranslatorSection() {
     <div className="translator-container">
       <h2 className="translator-title">🌍 AI Translator</h2>
 
-      {/* Input Area */}
-      <textarea
-        className="translator-textarea"
-        rows="6"
-        placeholder="Paste text here or upload an image..."
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-      />
+      {/* Input Area with preview overlay */}
+      <div style={{ position: "relative" }}>
+        <textarea
+          className="translator-textarea"
+          rows="6"
+          placeholder="Paste text here or upload an image..."
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          style={{
+            width: "100%",
+            padding: "16px",
+            borderRadius: "10px",
+            border: "1px solid #e5e7eb",
+            minHeight: "140px",
+            resize: "vertical",
+            boxSizing: "border-box",
+            background: "#fff",
+          }}
+        />
 
-      {/* File Upload + Buttons */}
+        {/* Image Preview (bottom-left inside input area) */}
+        {preview && (
+          <div
+            style={{
+              position: "absolute",
+              left: "12px",
+              bottom: "12px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              background: "#fff",
+              border: "1px solid #e5e7eb",
+              borderRadius: "6px",
+              padding: "6px",
+              boxShadow: "0 6px 18px rgba(0,0,0,0.08)",
+              zIndex: 5,
+            }}
+          >
+            <img
+              src={preview}
+              alt="preview"
+              style={{ width: "90px", height: "66px", objectFit: "cover", borderRadius: "6px" }}
+            />
+            <button
+              onClick={() => {
+                setFile(null);
+                setPreview(null);
+              }}
+              style={{
+                background: "red",
+                color: "white",
+                border: "none",
+                borderRadius: "50%",
+                width: "22px",
+                height: "22px",
+                cursor: "pointer",
+                fontWeight: "bold",
+              }}
+            >
+              ✖
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* File Upload + Buttons + Language Select + Translate Button (moved here) */}
       <div style={{ margin: "10px 0", display: "flex", gap: "12px", alignItems: "center" }}>
         <label className="translator-btn primary">
           📂 Choose Image
@@ -159,39 +215,27 @@ export default function TranslatorSection() {
         <button onClick={clearAll} className="translator-btn danger" style={{ backgroundColor: "Red", color: "White" }}>
           ❌ Clear
         </button>
-      </div>
 
-      {/* Image Preview with Close Button */}
-      {preview && (
-        <div style={{ position: "relative", display: "inline-block", marginBottom: "10px" }}>
-          <img
-            src={preview}
-            alt="preview"
-            style={{ maxWidth: "150px", maxHeight: "100px", borderRadius: "6px" }}
-          />
-          <button
-            onClick={() => {
-              setFile(null);
-              setPreview(null);
-            }}
-            style={{
-              position: "absolute",
-              top: "-8px",
-              right: "-8px",
-              background: "red",
-              color: "white",
-              border: "none",
-              borderRadius: "50%",
-              width: "22px",
-              height: "22px",
-              cursor: "pointer",
-              fontWeight: "bold",
-            }}
-          >
-            ✖
+        {/* spacer to push select + translate to the right */}
+        <div style={{ flex: 1 }} />
+
+        {/* Language Dropdown (now beside the clear section) */}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <label className="translator-label" style={{ fontWeight: 600 }}>Language:</label>
+          <select className="translator-select" value={lang} onChange={(e) => setLang(e.target.value)} style={{ padding: "6px 8px", borderRadius: 6 }}>
+            <option value="Hindi">Hindi</option>
+            <option value="Telugu">Telugu</option>
+            <option value="Tamil">Tamil</option>
+            <option value="Kannada">Kannada</option>
+            <option value="Malayalam">Malayalam</option>
+          </select>
+
+          {/* Translate Button */}
+          <button onClick={handleTranslate} className="translator-btn primary" disabled={loading} style={{ marginLeft: 8 }}>
+            {loading ? "Translating..." : "Translate"}
           </button>
         </div>
-      )}
+      </div>
 
       {/* English Audio Always Available */}
       {text && (
@@ -206,23 +250,6 @@ export default function TranslatorSection() {
           </div>
         </div>
       )}
-
-      {/* Language Dropdown */}
-      <div className="translator-controls">
-        <label className="translator-label">Select Language:</label>
-        <select className="translator-select" value={lang} onChange={(e) => setLang(e.target.value)}>
-          <option value="Hindi">Hindi</option>
-          <option value="Telugu">Telugu</option>
-          <option value="Tamil">Tamil</option>
-          <option value="Kannada">Kannada</option>
-          <option value="Malayalam">Malayalam</option>
-        </select>
-      </div>
-
-      {/* Translate Button */}
-      <button onClick={handleTranslate} className="translator-btn primary" disabled={loading}>
-        {loading ? "Translating..." : "Translate"}
-      </button>
 
       {/* Translated Output */}
       {translated && (
@@ -240,5 +267,3 @@ export default function TranslatorSection() {
     </div>
   );
 }
-
-
