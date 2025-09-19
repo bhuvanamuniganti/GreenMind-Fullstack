@@ -48,11 +48,11 @@ export default function Profile() {
 
   const LEFT_ITEMS = [
     { id: "Dashboard", title: "Dashboard", icon: "📋" },
-    { id: "translator", title: "Translate & Audio", icon: "🔊" },
-    { id: "Flashcards", title: "Flashcards & Quizzes", icon: "🎴" },
+    { id: "translator", title: "Book2Voice", icon: "🔊" },
+    { id: "Practice from Image", title: "Parent's Helper", icon: "📷" },  
     { id: "Math Tutor", title: "Math Tutor", icon: "➗" },
     { id: "Ask Anything", title: "Ask Anything", icon: "❓" },
-    { id: "Practice from Image", title: "Practice from Image", icon: "📷" },
+    { id: "Flashcards", title: "Flashcards & Quizzes", icon: "🎴" },
      { id: "Smart AI Learning", title: "Smart AI Learning", icon: "🤖" },
     { id: "Smart Contribution", title: "Smart Contribution", icon: "♻️" },
     { id: "Receive", title: "Knowledge Exchange", icon: "📥" },
