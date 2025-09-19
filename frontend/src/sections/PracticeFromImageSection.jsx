@@ -292,6 +292,10 @@ export default function PracticeFromImageSection() {
   const [gradeMapWritten, setGradeMapWritten] = useState({});
   const [gradeMapOral, setGradeMapOral] = useState({});
 
+  // New pronunciation / evaluation state
+  const [pronLoading, setPronLoading] = useState(false);
+  const [pronFeedbackMap, setPronFeedbackMap] = useState({}); // stores full feedback for each q.id
+
   useEffect(() => {
     return () => {
       try {
@@ -309,11 +313,14 @@ export default function PracticeFromImageSection() {
     setTextInput("");
     setWrittenAnswers({}); setOralText({}); setOralBlob({});
     setGradeMapWritten({}); setGradeMapOral({});
+    // reset pron states
+    setPronFeedbackMap({});
+    setPronLoading(false);
   }
 
   function switchMode(next) {
     setMode(next);
-    setGradeMapWritten({}); setGradeMapOral({});
+    setGradeMapWritten({}); setGradeMapOral({}); setPronFeedbackMap({});
   }
 
   function onBlobCapture(qid, blob) { setOralBlob(prev => ({ ...prev, [qid]: blob || null })); }
@@ -399,6 +406,7 @@ export default function PracticeFromImageSection() {
         setPayload(parsed);
         setWrittenAnswers({}); setOralText({}); setOralBlob({});
         setGradeMapWritten({}); setGradeMapOral({});
+        setPronFeedbackMap({});
       } else {
         alert("Could not create questions from the provided input.");
       }
@@ -431,6 +439,114 @@ export default function PracticeFromImageSection() {
     const text = data?.text || "";
     setOralText(prev => ({ ...prev, [qid]: text }));
   }
+
+  // --- New helpers for pronunciation evaluation (paste after transcribeOne) ---
+
+  // Play correct pronunciation via your existing TTS endpoint
+  async function playCorrectPronunciation(text) {
+    if (!text) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/learning/tts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = new Audio(url);
+      a.play();
+      a.onended = () => { try { URL.revokeObjectURL(url); } catch (e) {} };
+    } catch (err) {
+      console.error("playCorrectPronunciation error", err);
+    }
+  }
+
+  // Levenshtein distance (used by client-side fallback)
+  function levenshtein(a = "", b = "") {
+    const m = a.length, n = b.length;
+    const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+    for (let i = 0; i <= m; i++) dp[i][0] = i;
+    for (let j = 0; j <= n; j++) dp[0][j] = j;
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+      }
+    }
+    return dp[m][n];
+  }
+
+  // simple client-side per-word feedback (fallback)
+  function clientSidePronFeedback(expectedText = "", spokenText = "") {
+    const normalize = s => (s || "").toLowerCase().replace(/[^\p{L}\p{N}\s']/gu, "").trim();
+    const expWords = normalize(expectedText).split(/\s+/).filter(Boolean);
+    const spWords = normalize(spokenText).split(/\s+/).filter(Boolean);
+    const words = [];
+    let correct = 0;
+    for (let i = 0; i < expWords.length; i++) {
+      const e = expWords[i];
+      const s = spWords[i] || "";
+      const dist = levenshtein(e, s);
+      const norm = e.length ? dist / e.length : 1;
+      const mis = norm > 0.34; // threshold — tweak if needed
+      if (!mis) correct++;
+      words.push({
+        index: i,
+        expected: e,
+        spoken: s,
+        mispronounced: mis,
+        suggestion: mis ? `Try saying: ${e}` : null,
+        playText: e,
+        confidence: mis ? Math.round((1 - norm) * 100) : 100
+      });
+    }
+    const overallScore = Math.round((correct / Math.max(1, expWords.length)) * 100);
+    return { overallScore, feedback: `${correct} of ${expWords.length} words OK`, words };
+  }
+
+  // Tries server-side pronunciation API first; falls back to client-side evaluation
+  async function evaluatePronunciationOne(q) {
+    const qid = q.id;
+    const blob = oralBlob[qid];
+    if (!blob) { alert("Please record your answer first."); return; }
+
+    setPronLoading(true);
+    try {
+      // try server pronunciation endpoint (if available)
+      const form = new FormData();
+      form.append("audio", new File([blob], "answer.webm", { type: blob.type || "audio/webm" }));
+      form.append("expected", q.answer || q.question || "");
+      const r = await fetch(`${API_BASE}/api/practice-image/pronunciation`, {
+        method: "POST",
+        body: form,
+        credentials: "include",
+      });
+
+      if (r.ok) {
+        const data = await r.json();
+        // expected server shape: { overallScore, feedback, words: [ {expected, spoken, mispronounced, playText, suggestion } ] }
+        setPronFeedbackMap(prev => ({ ...prev, [qid]: data }));
+        setPronLoading(false);
+        return;
+      } else {
+        console.warn("Pron API not available or returned error; falling back to client-side");
+      }
+    } catch (err) {
+      console.warn("Pron API error, using fallback:", err);
+    }
+
+    // fallback: transcribe if not yet transcribed, then evaluate client-side
+    let transcript = oralText[qid] || "";
+    if (!transcript) {
+      await transcribeOne(qid);
+      transcript = oralText[qid] || "";
+    }
+    const fb = clientSidePronFeedback(q.answer || q.question || "", transcript);
+    setPronFeedbackMap(prev => ({ ...prev, [qid]: fb }));
+    setPronLoading(false);
+  }
+
+  // --- end pronunciation helpers ---
 
   async function gradeWrittenAll() {
     if (!payload) return;
@@ -489,7 +605,7 @@ export default function PracticeFromImageSection() {
       const data = await r.json();
       if (Array.isArray(data?.questions) && data.questions.length) {
         setPayload(data); setWrittenAnswers({}); setOralText({}); setOralBlob({});
-        setGradeMapWritten({}); setGradeMapOral({});
+        setGradeMapWritten({}); setGradeMapOral({}); setPronFeedbackMap({});
       } else {
         alert("Could not generate a similar set.");
       }
@@ -743,6 +859,52 @@ export default function PracticeFromImageSection() {
                         <AnimatedButton onClick={() => transcribeOne(q.id)} style={{ background: "#0ea5e9" }}>📝 Transcribe Recording</AnimatedButton>
                         <AnimatedButton onClick={() => gradeOralOne(q)} style={{ background: "#7c3aed" }}>✅ Grade This Answer</AnimatedButton>
                       </div>
+
+                      {/* — Pronunciation feedback & actions (inserted) */}
+                      <div style={{ marginTop: 12 }}>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                          <AnimatedButton onClick={() => evaluatePronunciationOne(q)} style={{ background: "#06b6d4" }} disabled={pronLoading}>
+                            {pronLoading ? "Evaluating…" : "🔍 Check Pronunciation"}
+                          </AnimatedButton>
+                          <AnimatedButton onClick={() => playCorrectPronunciation(q.answer || q.question)} style={{ background: "#3b82f6" }}>
+                            🔊 Hear Correct Answer
+                          </AnimatedButton>
+                        </div>
+
+                        {pronFeedbackMap[q.id] && (
+                          <div style={{ marginTop: 10, padding: 10, borderRadius: 10, background: "#fffbe6", border: "1px solid #fef3c7" }}>
+                            <div style={{ fontWeight: 800, marginBottom: 8 }}>
+                              Pronunciation — Score: {pronFeedbackMap[q.id].overallScore ?? pronFeedbackMap[q.id].score ?? "—"}%
+                            </div>
+
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              {(pronFeedbackMap[q.id].words || []).map(w => (
+                                <div key={w.index} style={{
+                                  padding: "8px 10px",
+                                  borderRadius: 8,
+                                  background: w.mispronounced ? "#fee2e2" : "#ecfdf5",
+                                  color: w.mispronounced ? "#991b1b" : "#065f46",
+                                  display: "flex",
+                                  gap: 8,
+                                  alignItems: "center",
+                                  minWidth: 120
+                                }}>
+                                  <div style={{ fontWeight: 800 }}>{w.expected}</div>
+                                  <div style={{ fontSize: 13 }}>{w.mispronounced ? `you said: «${w.spoken || "—"}»` : "good"}</div>
+                                  <button onClick={() => playCorrectPronunciation(w.playText || w.expected)} style={{ marginLeft: 6, padding: "6px 8px", borderRadius: 6 }}>
+                                    🔊 Play
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+
+                            {pronFeedbackMap[q.id].feedback && (
+                              <div style={{ marginTop: 8, color: "#0f172a" }}>{pronFeedbackMap[q.id].feedback}</div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      {/* — end pronunciation UI */}
                     </>
                   )}
 
@@ -769,5 +931,3 @@ export default function PracticeFromImageSection() {
     </div>
   );
 }
-
-
