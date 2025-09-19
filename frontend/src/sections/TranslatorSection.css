@@ -172,3 +172,134 @@
   .editable-wrapper { padding:10px; min-height: 120px; }
   .controls-row { gap: 8px; }
 }
+/* ===== Overrides for controls wrapping & stacking on small screens ===== */
+
+.controls-row {
+  display: flex !important;
+  gap: 12px !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;        /* allow items to wrap */
+  justify-content: flex-start !important;
+}
+
+/* make each control item behave nicely when wrapping */
+.controls-row > * {
+  flex: 0 1 auto;     /* allow shrink & wrap */
+  min-width: 0;       /* allow text to wrap inside */
+}
+
+/* translator-controls (language + buttons area) */
+.translator-controls {
+  display: flex !important;
+  gap: 12px !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  justify-content: flex-start !important;
+}
+
+/* Ensure inputs and selects can shrink and take full width on mobile */
+.translator-controls input,
+.translator-controls select,
+.translator-controls .translator-select,
+.controls-row input,
+.controls-row button,
+.controls-row .translator-btn {
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* SMALL SCREEN: stack into vertical column and make buttons full width */
+@media (max-width: 600px) {
+  .controls-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
+  .controls-row > * {
+    width: 100% !important;    /* each control occupies full row */
+    max-width: 100% !important;
+  }
+
+  .translator-controls {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
+  .translator-controls .translator-select,
+  .translator-controls input {
+    width: 100% !important;
+  }
+
+  .translator-btn {
+    width: 100% !important;           /* make buttons full-width on mobile */
+    justify-content: center !important;
+    padding: 10px 12px !important;
+  }
+
+  /* if you have an icon inside button, keep it compact */
+  .translator-btn img,
+  .translator-btn svg {
+    margin-right: 8px;
+    height: 18px;
+    width: 18px;
+  }
+}
+
+/* SAFETY: prevent parent from forcing one-line layout */
+.editable-wrapper, .translator-container {
+  min-width: 0 !important;
+  overflow-wrap: anywhere !important;
+}
+/* spacer utility */
+.flex-spacer {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* keep translator-controls aligned to the right on wide screens */
+.translator-controls {
+  margin-left: auto;        /* pushes it to the right of the controls-row */
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+/* Make translator-controls take a full row on small screens */
+@media (max-width: 600px) {
+  /* ensure spacer doesn't force weird gaps on mobile */
+  .flex-spacer {
+    flex: 0 0 auto;
+    width: 100%;
+    height: 0;     /* acts like a line-break so the controls below sit on new row */
+  }
+
+  /* stack controls and make language+translate full width */
+  .controls-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .translator-controls {
+    margin-left: 0;
+    width: 100%;
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  /* make select and translate button full width inside translator-controls */
+  .translator-controls .translator-select,
+  .translator-controls .translator-btn {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* keep other buttons full-width too if needed */
+  .controls-row > * {
+    width: 100%;
+  }
+}

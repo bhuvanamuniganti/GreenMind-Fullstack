@@ -193,7 +193,7 @@ export default function TranslatorSection() {
       </div>
 
       {/* File Upload + Buttons + Language Select + Translate Button (moved here) */}
-      <div style={{ margin: "10px 0", display: "flex", gap: "12px", alignItems: "center" }}>
+      <div className="controls-row" style={{ margin: "10px 0" }}>
         <label className="translator-btn primary">
           📂 Choose Image
           <input
@@ -217,7 +217,7 @@ export default function TranslatorSection() {
         </button>
 
         {/* spacer to push select + translate to the right */}
-        <div style={{ flex: 1 }} />
+        <div calssName="flex-spacer" />
 
         {/* Language Dropdown (now beside the clear section) */}
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
