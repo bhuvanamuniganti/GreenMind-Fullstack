@@ -708,7 +708,7 @@ export default function PracticeFromImageSection() {
   return (
     <div className="glass" style={{ padding: 20, maxWidth: 1100, margin: "0 auto" }}>
       <h2>📝 Practice from Text or Image — Written & Oral</h2>
-      <p>Paste text or upload a photo of educational items. We extract questions (answers hidden). You can take a written or oral test. Use Print to get a question paper (no answers).</p>
+      <p>Paste text or upload a picture. We extract questions (answers hidden). You can take a written or oral test. Use Print to get a question paper (no answers).</p>
 
       {/* Upload / Analyze */}
       {!payload && (

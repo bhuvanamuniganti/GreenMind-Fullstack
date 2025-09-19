@@ -1,5 +1,12 @@
-/* TranslatorSection.css - styles for editable area, overlay image, animated buttons */
+/* TranslatorSection.css
+   Final cleaned version (single authoritative file)
+   - Left group: Choose Image / Analyze / Clear
+   - Right group: Language + Translate
+   - Clear button solid red
+   - Responsive stacking
+*/
 
+/* Container */
 .translator-container {
   max-width: 980px;
   margin: 0 auto;
@@ -7,27 +14,17 @@
   background: transparent;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial;
   position: relative;
+  text-align: left;
+  box-sizing: border-box;
 }
 
-/* TITLE */
+/* Title */
 .translator-title {
   margin: 0 0 12px;
   font-size: 20px;
 }
 
-/* Editable input wrapper */
-.editable-wrapper {
-  position: relative;
-  background: #fff;
-  border: 1px solid #d1d5db;
-  border-radius: 10px;
-  padding: 12px;
-  min-height: 140px; /* slightly taller to give room for preview */
-  overflow: visible; /* allow overlay to be visible inside */
-  box-sizing: border-box;
-}
-
-/* textarea inside wrapper */
+/* Textarea */
 .translator-textarea {
   width: 100%;
   min-height: 88px;
@@ -47,12 +44,12 @@
   resize: vertical;
 }
 
-/* IMAGE overlay inside editable area, positioned bottom-left */
+/* Image preview overlay (bottom-left) */
 .image-overlay {
   position: absolute;
   left: 12px;
   bottom: 12px;
-  display: inline-block;
+  display: inline-flex;
   border-radius: 8px;
   background: rgba(255,255,255,0.95);
   padding: 6px;
@@ -60,17 +57,12 @@
   align-items: center;
   z-index: 6;
 }
-
-/* preview image inside overlay */
 .image-overlay img {
-  display: block;
   max-width: 140px;
   max-height: 90px;
   object-fit: cover;
   border-radius: 6px;
 }
-
-/* close button overlapping the small image (top-right visually) */
 .img-close {
   position: absolute;
   top: -8px;
@@ -90,17 +82,45 @@
   z-index: 8;
 }
 
-/* Controls row: keep controls in one line on wide screens, wrap on small */
+/* ---------------- Controls layout ---------------- */
+/* Main row: force left alignment */
 .controls-row {
-  margin-top: 12px;
+  width: 100%;
   display: flex;
-  gap: 12px;
   align-items: center;
-  flex-wrap: nowrap;
-  flex-wrap: wrap; /* allow wrapping when necessary */
+  justify-content: flex-start; /* ✅ force left */
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 10px 0;
+  box-sizing: border-box;
+  padding: 0;
 }
 
-/* Base button styles (used by AnimatedButton) */
+/* Left group: Choose Image / Analyze / Clear */
+.controls-left {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.controls-left > * {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+/* Right group: Language + Translate */
+.translator-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start; /* ✅ keep left */
+  gap: 12px;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* ---------------- Buttons ---------------- */
 .translator-btn {
   background: linear-gradient(90deg,#0e682f,#1f8a46);
   color: white;
@@ -110,38 +130,52 @@
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 6px 18px rgba(2,55,20,0.08);
-  transition: transform .14s ease, box-shadow .14s ease, opacity .12s ease, background .12s;
+  transition: transform .14s ease, box-shadow .14s ease, opacity .12s;
   user-select: none;
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  box-sizing: border-box;
 }
 
-/* variant styles */
-.translator-btn.secondary { background: linear-gradient(90deg,#139f31,#7dcb85); color:#082b18; }
-.translator-btn.danger { background: linear-gradient(90deg,#ff5e5e,#ff7b7b); color:white; }
-.translator-btn.download { background: linear-gradient(90deg,#4c6ef5,#7c9cff); }
-
-/* pressed / animated state (added class by component) */
-.translator-btn.anim {
-  transform: translateY(-3px) scale(1.02);
-  box-shadow: 0 12px 28px rgba(2,55,20,0.12);
+/* Variants */
+.translator-btn.secondary {
+  background: linear-gradient(90deg,#139f31,#7dcb85);
+  color: #082b18;
+}
+.translator-btn.download {
+  background: linear-gradient(90deg,#4c6ef5,#7c9cff);
 }
 
-/* :active fallback for quick tactile feedback */
-.translator-btn:active {
-  transform: translateY(0) scale(0.99);
+/* Clear button: enforce solid red */
+.translator-btn.danger {
+  background: #e53935 !important; /* solid red override */
+  background-image: none !important; /* ✅ kill gradient */
+  color: #fff !important;
+  border: none !important;
+  box-shadow: 0 6px 18px rgba(229,57,53,0.25) !important;
+}
+.translator-btn.danger:hover {
+  background: #c62828 !important; /* darker red on hover */
+  background-image: none !important; /* ✅ keep it solid */
 }
 
-/* disabled state */
-.translator-btn[disabled] {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
+
+/* Pressed/active states */
+.translator-btn.anim { transform: translateY(-3px) scale(1.02); box-shadow: 0 12px 28px rgba(2,55,20,0.12); }
+.translator-btn:active { transform: translateY(0) scale(0.99); }
+.translator-btn[disabled] { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* ---------------- Controls inputs ---------------- */
+.translator-label { font-weight: 700; color: #0b2d16; }
+.translator-select {
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  box-sizing: border-box;
 }
 
-/* translator output blocks */
+/* ---------------- Output blocks ---------------- */
 .translator-output {
   margin-top: 14px;
   padding: 12px;
@@ -151,155 +185,61 @@
 }
 .text-block { white-space: pre-wrap; color: #062e18; }
 
-/* audio row */
-.audio-row { margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+/* Audio row */
+.audio-row { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
-/* language selector */
-.translator-controls { margin-top: 0; display:flex; gap:12px; align-items:center; }
-.translator-label { font-weight:700; color:#0b2d16; }
-.translator-select { padding:6px 8px; border-radius:6px; border:1px solid #d1d5db; }
-
-/* small responsive adjustments */
-@media (max-width:920px) {
-  .controls-row { gap: 10px; }
+/* ---------------- Responsive ---------------- */
+@media (max-width: 920px) {
   .image-overlay img { max-width: 120px; max-height: 90px; }
   .image-overlay { left: 10px; bottom: 10px; }
 }
 
-@media (max-width:600px) {
-  .image-overlay img { max-width: 110px; max-height:70px; }
-  .translator-btn { padding: 8px 10px; font-size:14px; }
-  .editable-wrapper { padding:10px; min-height: 120px; }
-  .controls-row { gap: 8px; }
-}
-/* ===== Overrides for controls wrapping & stacking on small screens ===== */
-
-.controls-row {
-  display: flex !important;
-  gap: 12px !important;
-  align-items: center !important;
-  flex-wrap: wrap !important;        /* allow items to wrap */
-  justify-content: flex-start !important;
-}
-
-/* make each control item behave nicely when wrapping */
-.controls-row > * {
-  flex: 0 1 auto;     /* allow shrink & wrap */
-  min-width: 0;       /* allow text to wrap inside */
-}
-
-/* translator-controls (language + buttons area) */
-.translator-controls {
-  display: flex !important;
-  gap: 12px !important;
-  align-items: center !important;
-  flex-wrap: wrap !important;
-  justify-content: flex-start !important;
-}
-
-/* Ensure inputs and selects can shrink and take full width on mobile */
-.translator-controls input,
-.translator-controls select,
-.translator-controls .translator-select,
-.controls-row input,
-.controls-row button,
-.controls-row .translator-btn {
-  min-width: 0 !important;
-  box-sizing: border-box !important;
-}
-
-/* SMALL SCREEN: stack into vertical column and make buttons full width */
 @media (max-width: 600px) {
-  .controls-row {
-    flex-direction: column !important;
-    align-items: stretch !important;
-    gap: 10px !important;
-  }
-
-  .controls-row > * {
-    width: 100% !important;    /* each control occupies full row */
-    max-width: 100% !important;
-  }
-
-  .translator-controls {
-    flex-direction: column !important;
-    align-items: stretch !important;
-    gap: 10px !important;
-  }
-
-  .translator-controls .translator-select,
-  .translator-controls input {
-    width: 100% !important;
-  }
-
-  .translator-btn {
-    width: 100% !important;           /* make buttons full-width on mobile */
-    justify-content: center !important;
-    padding: 10px 12px !important;
-  }
-
-  /* if you have an icon inside button, keep it compact */
-  .translator-btn img,
-  .translator-btn svg {
-    margin-right: 8px;
-    height: 18px;
-    width: 18px;
-  }
-}
-
-/* SAFETY: prevent parent from forcing one-line layout */
-.editable-wrapper, .translator-container {
-  min-width: 0 !important;
-  overflow-wrap: anywhere !important;
-}
-/* spacer utility */
-.flex-spacer {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-/* keep translator-controls aligned to the right on wide screens */
-.translator-controls {
-  margin-left: auto;        /* pushes it to the right of the controls-row */
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: nowrap;
-}
-
-/* Make translator-controls take a full row on small screens */
-@media (max-width: 600px) {
-  /* ensure spacer doesn't force weird gaps on mobile */
-  .flex-spacer {
-    flex: 0 0 auto;
-    width: 100%;
-    height: 0;     /* acts like a line-break so the controls below sit on new row */
-  }
-
-  /* stack controls and make language+translate full width */
   .controls-row {
     flex-direction: column;
     align-items: stretch;
     gap: 10px;
   }
 
-  .translator-controls {
-    margin-left: 0;
+  .controls-left {
     width: 100%;
-    flex-direction: column;
-    gap: 8px;
-    align-items: stretch;
+    justify-content: flex-start;
   }
 
-  /* make select and translate button full width inside translator-controls */
+  .translator-controls {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin-left: 0;
+  }
+
   .translator-controls .translator-select,
   .translator-controls .translator-btn {
     width: 100%;
     box-sizing: border-box;
   }
 
-  /* keep other buttons full-width too if needed */
-  .controls-row > * {
+  .translator-btn {
     width: 100%;
+    justify-content: center;
+    padding: 10px 12px;
   }
+}
+
+/* ---------------- Safety (avoid parent overrides) ---------------- */
+.editable-wrapper, .translator-container {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Keep inputs and buttons shrinkable */
+.translator-controls input,
+.translator-controls select,
+.translator-controls .translator-select,
+.controls-row input,
+.controls-row button,
+.controls-row .translator-btn {
+  min-width: 0;
+  box-sizing: border-box;
 }

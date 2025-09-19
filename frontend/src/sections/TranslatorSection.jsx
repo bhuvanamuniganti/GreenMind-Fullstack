@@ -192,50 +192,61 @@ export default function TranslatorSection() {
         )}
       </div>
 
-      {/* File Upload + Buttons + Language Select + Translate Button (moved here) */}
-      <div className="controls-row" style={{ margin: "10px 0" }}>
-        <label className="translator-btn primary">
-          📂 Choose Image
-          <input
-            type="file"
-            accept="image/*"
-            style={{ display: "none" }}
-            onChange={(e) => {
-              const selectedFile = e.target.files[0];
-              setFile(selectedFile);
-              setPreview(URL.createObjectURL(selectedFile));
-            }}
-          />
-        </label>
 
-        <button onClick={() => callAPI("analyze", setText)} className="translator-btn secondary">
-          📸 Analyze
-        </button>
+{/* File Upload + Buttons + Language Select + Translate Button */}
+{/* File Upload + Buttons + Language Select + Translate Button */}
+<div
+  className="controls-row"
+  style={{
+    display: "flex",
+    justifyContent: "flex-start", // force left alignment
+    alignItems: "center",
+    gap: "12px",
+    flexWrap: "wrap",
+    padding: 0,
+  }}
+>
+  <div className="controls-left">
+    <label className="translator-btn primary">
+      📂 Choose Image
+      <input
+        type="file"
+        accept="image/*"
+        style={{ display: "none" }}
+        onChange={(e) => {
+          const selectedFile = e.target.files[0];
+          setFile(selectedFile);
+          setPreview(URL.createObjectURL(selectedFile));
+        }}
+      />
+    </label>
 
-        <button onClick={clearAll} className="translator-btn danger" style={{ backgroundColor: "Red", color: "White" }}>
-          ❌ Clear
-        </button>
+    <button onClick={() => callAPI("analyze", setText)} className="translator-btn secondary">
+      📸 Analyze
+    </button>
 
-        {/* spacer to push select + translate to the right */}
-        <div calssName="flex-spacer" />
+    <button onClick={clearAll} className="translator-btn danger" style ={{backgroundColor:"Red"}}>
+      ❌ Clear
+    </button>
+  </div>
 
-        {/* Language Dropdown (now beside the clear section) */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <label className="translator-label" style={{ fontWeight: 600 }}>Language:</label>
-          <select className="translator-select" value={lang} onChange={(e) => setLang(e.target.value)} style={{ padding: "6px 8px", borderRadius: 6 }}>
-            <option value="Hindi">Hindi</option>
-            <option value="Telugu">Telugu</option>
-            <option value="Tamil">Tamil</option>
-            <option value="Kannada">Kannada</option>
-            <option value="Malayalam">Malayalam</option>
-          </select>
+  <div className="translator-controls">
+    <label className="translator-label">Language:</label>
+    <select className="translator-select" value={lang} onChange={(e) => setLang(e.target.value)}>
+      <option value="Hindi">Hindi</option>
+      <option value="Telugu">Telugu</option>
+      <option value="Tamil">Tamil</option>
+      <option value="Kannada">Kannada</option>
+      <option value="Malayalam">Malayalam</option>
+    </select>
 
-          {/* Translate Button */}
-          <button onClick={handleTranslate} className="translator-btn primary" disabled={loading} style={{ marginLeft: 8 }}>
-            {loading ? "Translating..." : "Translate"}
-          </button>
-        </div>
-      </div>
+    <button onClick={handleTranslate} className="translator-btn primary" disabled={loading}>
+      {loading ? "Translating..." : "Translate"}
+    </button>
+  </div>
+</div>
+
+
 
       {/* English Audio Always Available */}
       {text && (
