@@ -124,7 +124,7 @@ export default function ReceiveSection({ setMe }) {
   });
 
   return (
-    <div style={{ position: "relative" }}>
+    <div style={{ position: "relative" , marginTop: "0px", marginLeft: "50px", marginRight: "50px"}}>
       <h2>📥 Receive Items</h2>
 
       {/* Certificate overlay */}
@@ -226,7 +226,10 @@ export default function ReceiveSection({ setMe }) {
           <input type="text" placeholder="Category" value={reqCategory} onChange={(e) => setReqCategory(e.target.value)} style={{ padding: 8, borderRadius: 6 }} />
           <div style={{ display: "flex", gap: 8 }}>
             <button className="btn primary" type="submit">Submit Request</button>
-            <button className="btn" type="button" onClick={() => { setReqTitle(""); setReqDesc(""); setReqCategory(""); }}>Clear</button>
+            <button className="btn" type="button" 
+            onClick={() => { setReqTitle(""); setReqDesc(""); setReqCategory(""); }}
+            style = {{backgroundColor:"Red", color: "#ffffff"}}
+            >Clear</button>
           </div>
         </form>
       </div>

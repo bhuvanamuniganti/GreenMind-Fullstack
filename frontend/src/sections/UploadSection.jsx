@@ -164,6 +164,7 @@ export default function UploadSection({ setMe }) {
                     top: 10,
                     right: 10,
                     padding: "6px 10px",
+                    backgroundColor:"Red"
                   }}
                 >
                   ✖ Remove
