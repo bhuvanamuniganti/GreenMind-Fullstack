@@ -233,20 +233,15 @@ export default function OralPracticeFromPhotoSection() {
   const [pronFeedbackMap, setPronFeedbackMap] = useState({});
   const [scoreMap, setScoreMap] = useState({});
   const [loading, setLoading] = useState(false);
-  const [pronLoading, setPronLoading] = useState(false);
+  
 
   const [currentIndex, setCurrentIndex] = useState(0); // show one question at a time
 
   const recorderRef = useRef(null);
   const [isAsking, setIsAsking] = useState(false);
-  const [showExplainModal, setShowExplainModal] = useState(false);
-  const [explainText, setExplainText] = useState("");
 
-  // NEW: states for parent oral explanation (recorded in modal)
-  const [explainRecording, setExplainRecording] = useState(false);
-  const explainMediaRef = useRef({ recorder: null, stream: null, chunks: [] });
-  const [explainBlob, setExplainBlob] = useState(null);
-  const [explainUrl, setExplainUrl] = useState(null);
+  
+ // const [explainUrl, setExplainUrl] = useState(null);
 
   // ADDED: ref + speaking state to animate parent photo while audio plays
   const parentPhotoWrapRef = useRef(null); // ADDED
@@ -258,9 +253,9 @@ export default function OralPracticeFromPhotoSection() {
   useEffect(() => {
     return () => {
       try { if (preview) URL.revokeObjectURL(preview); } catch {}
-      try { if (explainUrl) URL.revokeObjectURL(explainUrl); } catch {}
+    
     };
-  }, [preview, explainUrl]);
+  });
 
   function onBlobCapture(qid, blob) {
     setOralBlob(prev => ({ ...prev, [qid]: blob || null }));
@@ -506,58 +501,7 @@ export default function OralPracticeFromPhotoSection() {
     ? payload.questions[currentIndex]
     : null;
 
-  // NEW: record parent's oral explanation inside modal
-  async function startExplainRecording() {
-    if (explainRecording) return;
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      explainMediaRef.current.stream = stream;
-      explainMediaRef.current.chunks = [];
-      const mime = (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) ? "audio/webm;codecs=opus"
-        : (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("audio/webm")) ? "audio/webm" : "";
-      const mr = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
-      mr.ondataavailable = (e) => { if (e.data && e.data.size) explainMediaRef.current.chunks.push(e.data); };
-      mr.onstop = () => {
-        try { if (explainUrl) URL.revokeObjectURL(explainUrl); } catch {}
-        const blob = new Blob(explainMediaRef.current.chunks, { type: mime || "audio/webm" });
-        setExplainBlob(blob);
-        const url = URL.createObjectURL(blob);
-        setExplainUrl(url);
-        // stop tracks
-        try { explainMediaRef.current.stream?.getTracks()?.forEach(t => t.stop()); } catch {}
-        explainMediaRef.current.stream = null;
-      };
-      explainMediaRef.current.recorder = mr;
-      mr.start();
-      setExplainRecording(true);
-    } catch (err) {
-      console.error("startExplainRecording failed", err);
-      alert("Could not start recording explanation — check mic permissions.");
-    }
-  }
-  function stopExplainRecording() {
-    try {
-      explainMediaRef.current.recorder?.stop();
-    } catch (e) { console.warn(e); }
-    setExplainRecording(false);
-  }
-  function playExplainAudio() {
-    if (explainUrl) {
-      // note: this function remains available but we prefer using playRecordedWithParentAnimation where we want animation
-      const a = new Audio(explainUrl);
-      a.play();
-      a.onended = () => {};
-    } else {
-      alert("No explanation recorded yet. Please record it first.");
-    }
-  }
-  function clearExplainRecording() {
-    try { if (explainUrl) URL.revokeObjectURL(explainUrl); } catch {}
-    explainMediaRef.current = { recorder: null, stream: null, chunks: [] };
-    setExplainBlob(null);
-    setExplainUrl(null);
-    setExplainRecording(false);
-  }
+ 
 
   // --- ADDED: helpers to play audio while toggling parentSpeaking ----
   async function speakWithParentAnimation(text, opts = {}) {
@@ -579,24 +523,6 @@ export default function OralPracticeFromPhotoSection() {
     }
   }
 
-  async function playRecordedWithParentAnimation(url) {
-    if (!url) return;
-    setParentSpeaking(true);
-    if (parentPhotoWrapRef.current) parentPhotoWrapRef.current.classList.add("speaking");
-    try {
-      await new Promise((res) => {
-        const a = new Audio(url);
-        a.onended = res;
-        a.play().catch(err => {
-          console.error("play recorded explanation failed", err);
-          res();
-        });
-      });
-    } finally {
-      if (parentPhotoWrapRef.current) parentPhotoWrapRef.current.classList.remove("speaking");
-      setParentSpeaking(false);
-    }
-  }
   // ------------------------------------------------------------------
 
   // enhanced behaviour: play parent's recorded explanation if exists, otherwise just ask question; then start recorder
@@ -605,11 +531,7 @@ export default function OralPracticeFromPhotoSection() {
     if (!currentQuestion) return;
     setIsAsking(true);
     try {
-      // play parent's recorded explanation if present (otherwise skip)
-      if (explainUrl) {
-        await playRecordedWithParentAnimation(explainUrl); // plays with animation
-        await new Promise(r => setTimeout(r, 250));
-      }
+     
 
       // play question via TTS (with parent animation)
       await speakWithParentAnimation(`Question: ${currentQuestion.question}`); // plays with animation
