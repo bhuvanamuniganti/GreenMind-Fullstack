@@ -200,7 +200,7 @@ export default function Profile() {
           </div>
         </header>
         <DashboardCards />
-        <div style= {{backgroundColor:"#e3f1e1", padding: "10px", marginTop: "10px"}}>
+        <div style= {{backgroundColor:"#e3f1e1", padding: "2px", marginTop: "40px"}}>
         <p style = {{ fontFamily: "Roboto"}}>
          Note: Click any left menu item to open that feature in full view.
         </p>

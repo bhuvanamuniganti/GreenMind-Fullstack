@@ -91,7 +91,7 @@ html,body,#root {
   box-shadow: 0 6px 18px rgba(8,45,20,0.06);
   display: flex;
   flex-direction: column;
-  height: 400px;
+  height: 500px;
   padding: 12px;
   overflow: hidden;
   transition: transform .16s ease, box-shadow .16s ease;
@@ -108,10 +108,10 @@ html,body,#root {
 }
 
 /* Card hero image */
-.card-hero { height: 380px; margin: 0.1 -12px 12px -12px; border-radius: 10px; overflow: hidden; display: block; background: #fff; }
+.card-hero { height: 900px; margin: 0.1 -12px 12px -12px; border-radius: 10px; overflow: hidden; display: block; background: #fff; }
 .card-hero img {
   width: calc(100% + 24px);
-  height: 100%;
+  height:100%;
   margin-left: -12px;
   object-fit: cover;
   object-position: center 12%;
@@ -123,7 +123,7 @@ html,body,#root {
 
 /* Buttons */
 .btn {
-  padding: 8px 12px;
+  padding: 8px 10px;
   border-radius: 8px;
   font-weight: 700;
   cursor: pointer;
@@ -132,6 +132,7 @@ html,body,#root {
   appearance: none;
   background: linear-gradient(90deg,#ff7b1b,#ff5e00);
   box-shadow: 0 4px 10px rgba(8,45,20,0.06);
+  margin-top: 10px;
 }
 .btn-primary-green { background: linear-gradient(90deg,var(--btn-green),#0a5b2a); color:#fff; border:0; }
 .btn.signout { padding:10px 18px; border-radius:28px; background: linear-gradient(90deg,#ff7b1b,#ff5e00); color:#fff; border:none; font-weight:800; }
