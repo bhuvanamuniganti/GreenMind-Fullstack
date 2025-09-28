@@ -226,7 +226,7 @@ export default function OralPracticeFromPhotoSection() {
   const [preview, setPreview] = useState(null);
   const [textInput, setTextInput] = useState("");
   const [payload, setPayload] = useState(null); // { source_text, questions: [...] }
-  const [parentPhoto, setParentPhoto] = useState("/images/mother.png"); // default
+  const parentPhoto = "/images/mother.png"; // default
 
   const [oralBlob, setOralBlob] = useState({});
   const [oralText, setOralText] = useState({});
@@ -247,8 +247,8 @@ export default function OralPracticeFromPhotoSection() {
   const parentPhotoWrapRef = useRef(null); // ADDED
   const [parentSpeaking, setParentSpeaking] = useState(false); // ADDED
 
-  // greeting text display (read-only under upload/remove)
-  const [greetingText] = useState("Hello! Are you ready to practice? Let's try our best today!");
+  
+
 
   useEffect(() => {
     return () => {
@@ -491,11 +491,8 @@ export default function OralPracticeFromPhotoSection() {
     recorderRef.current?.clearAll?.();
   }
 
-  function handleParentUpload(fileObj) {
-    if (!fileObj) return;
-    try { const url = URL.createObjectURL(fileObj); setParentPhoto(url); } catch {}
-  }
-  function removeParentPhoto() { setParentPhoto("/images/mother.png"); }
+ 
+
 
   const currentQuestion = payload && Array.isArray(payload.questions) && payload.questions.length > 0
     ? payload.questions[currentIndex]
@@ -608,9 +605,7 @@ export default function OralPracticeFromPhotoSection() {
 
   return (
     <div className="op-root" style={{ padding: 20, maxWidth: 1100, margin: "0 auto" }}>
-      <h2>🎙️ Oral Practice (Parent asks, child answers)</h2>
-      <p style={{ color: "#475569" }}>Upload a parent photo (left) and paste text or upload an image to extract questions.</p>
-
+      <h2>🎙️ Oral Practice</h2>   
       <div className="pp-layout" style={{ display: "flex", gap: 18, alignItems: "flex-start" }}>
         {/* LEFT - Parent Photo Panel */}
         <div className="pp-left" style={{ width: 360 }}>
@@ -635,24 +630,9 @@ export default function OralPracticeFromPhotoSection() {
               <img src={parentPhoto} alt="parent" className="pp-photo" />
             </div>
 
-            <div className="pp-actions" style={{ marginTop: 12 }}>
-              <input id="parent-photo" type="file" accept="image/*" style={{ display: "none" }}
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) handleParentUpload(f);
-                }}
-              />
-              <label htmlFor="parent-photo" className="btn btn-primary"  style={{ cursor: "pointer", backgroundColor:"darkgreen" }}>Upload Parent Photo</label>
-              <button onClick={removeParentPhoto} className="btn btn-red" style={{ marginLeft: 8 }}>Remove</button>
-
-              {/* NOTE: I intentionally did NOT add any extra buttons here — per your request. */}
-            </div>
 
             <div className="pp-text" style={{ marginTop: 10 }}>
-              {/* greeting text (read-only) shown under the upload/remove buttons */}
-              <div style={{ marginTop: 8, background: "#f3f4f6", padding: 8, borderRadius: 6 }}>
-                <div style={{ color: "#374151" }}>{greetingText}</div>
-              </div>
+            
             </div>
           </div>
         </div>

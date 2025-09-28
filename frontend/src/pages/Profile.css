@@ -108,9 +108,10 @@ html,body,#root {
 }
 
 /* Card hero image */
-.card-hero { height: 900px; margin: 0.1 -12px 12px -12px; border-radius: 10px; overflow: hidden; display: block; background: #fff; }
+.card-hero { height: 900px; 
+  margin: 0.1 -12px 12px -12px; border-radius: 10px; overflow: hidden; display: block; background: #fff; }
 .card-hero img {
-  width: calc(100% + 24px);
+  width: calc(100% + 20px);
   height:100%;
   margin-left: -12px;
   object-fit: cover;

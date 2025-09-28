@@ -90,14 +90,14 @@ export default function Profile() {
       <div className="dashboard-cards">
         {/* ParentTalk card */}
         <div className="feature-card" onClick={() => setActiveSection("ParentTalk")} role="button">
-          <h3 className="card-title">👩‍👦 ParentTalk Practice</h3>
+          <h3 className="card-title">👩‍👦 Voice & Reading Practice</h3>
           <div className="card-hero">
             <img src={PH_PARENT} alt="ParentTalk" onError={(e) => safe(e,"https://via.placeholder.com/800x1200?text=ParentTalk")} />
           </div>
           <div className="card-body">
             <button className="btn btn-primary-green" 
             style = {{backgroundColor: "darkgreen", color :"white"}}
-            onClick={(e) => { e.stopPropagation(); setActiveSection("ParentTalk"); }}>Let's Play</button>
+            onClick={(e) => { e.stopPropagation(); setActiveSection("ParentTalk"); }}>Listen & Repeat</button>
           </div>
         </div>
 
