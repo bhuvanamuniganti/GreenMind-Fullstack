@@ -1,5 +1,7 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { API_BASE } from '../api';
+
+import "./TranslatorSection.css";
 
 export default function TranslatorSection() {
   const [text, setText] = useState("");
@@ -8,6 +10,10 @@ export default function TranslatorSection() {
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
+
+  // NEW: explanation state + audio url for explanation
+  const [explanation, setExplanation] = useState("");
+  const [explainAudioUrl, setExplainAudioUrl] = useState(null);
 
   const audioRef = useRef(null);
 
@@ -121,7 +127,116 @@ export default function TranslatorSection() {
     setFile(null);
     setPreview(null);
     setTranslated("");
+    setExplanation("");
+    if (explainAudioUrl) {
+      URL.revokeObjectURL(explainAudioUrl);
+      setExplainAudioUrl(null);
+    }
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
   };
+
+  // ===== NEW: helpers + explain handler =====
+
+  // convert base64 audio (returned by backend) to blob URL
+  const base64ToBlobUrl = (base64, mime = "audio/mpeg") => {
+    try {
+      const byteChars = atob(base64);
+      const byteNumbers = new Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) {
+        byteNumbers[i] = byteChars.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: mime });
+      return URL.createObjectURL(blob);
+    } catch (e) {
+      console.error("base64 to blob error:", e);
+      return null;
+    }
+  };
+
+  // Explain: sends text + targetLang to backend explain endpoint,
+  // sets explanation text and creates audio blob URL from returned base64
+  const handleExplain = async () => {
+    if (!text || !text.trim()) {
+      alert("Please enter or analyze some text first.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/learning/explain`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, style: "story", targetLang: lang }),
+      });
+
+      const data = await res.json();
+
+      if (data?.result) {
+        const { text: explText = "", audio: audioBase64 = null } = data.result;
+        setExplanation(explText);
+
+        // cleanup previous audio url
+        if (explainAudioUrl) {
+          URL.revokeObjectURL(explainAudioUrl);
+          setExplainAudioUrl(null);
+        }
+
+        if (audioBase64) {
+          const url = base64ToBlobUrl(audioBase64, "audio/mpeg");
+          if (url) {
+            setExplainAudioUrl(url);
+
+            // Try autoplay
+            try {
+              if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current = null;
+              }
+              audioRef.current = new Audio(url);
+              // attempt play, may be blocked by browser
+              audioRef.current.play().catch((e) => {
+                console.warn("Autoplay blocked or failed:", e);
+              });
+            } catch (e) {
+              console.warn("Audio play error after explain:", e);
+            }
+          }
+        } else {
+          // fallback: no audio returned — you could call playAudio(explText) if desired
+          // playAudio(explText);
+        }
+      } else {
+        console.error("No result from explain endpoint", data);
+        alert("No explanation returned from server.");
+      }
+    } catch (err) {
+      console.error("Explain fetch error:", err);
+      alert("Error generating explanation. Check console for details.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // cleanup object URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      if (explainAudioUrl) {
+        URL.revokeObjectURL(explainAudioUrl);
+      }
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      if (preview) {
+        URL.revokeObjectURL(preview);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="translator-container">
@@ -192,61 +307,62 @@ export default function TranslatorSection() {
         )}
       </div>
 
-
-{/* File Upload + Buttons + Language Select + Translate Button */}
-{/* File Upload + Buttons + Language Select + Translate Button */}
-<div
-  className="controls-row"
-  style={{
-    display: "flex",
-    justifyContent: "flex-start", // force left alignment
-    alignItems: "center",
-    gap: "12px",
-    flexWrap: "wrap",
-    padding: 0,
-  }}
->
-  <div className="controls-left">
-    <label className="translator-btn primary">
-      📂 Choose Image
-      <input
-        type="file"
-        accept="image/*"
-        style={{ display: "none" }}
-        onChange={(e) => {
-          const selectedFile = e.target.files[0];
-          setFile(selectedFile);
-          setPreview(URL.createObjectURL(selectedFile));
+      {/* File Upload + Buttons + Language Select + Translate Button */}
+      <div
+        className="controls-row"
+        style={{
+          display: "flex",
+          justifyContent: "flex-start", // force left alignment
+          alignItems: "center",
+          gap: "12px",
+          flexWrap: "wrap",
+          padding: 0,
         }}
-      />
-    </label>
+      >
+        <div className="controls-left">
+          <label className="translator-btn choose">
+            📂 Choose Image
+            <input
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const selectedFile = e.target.files[0];
+                setFile(selectedFile);
+                setPreview(URL.createObjectURL(selectedFile));
+              }}
+            />
+          </label>
 
-    <button onClick={() => callAPI("analyze", setText)} className="translator-btn secondary">
-      📸 Analyze
-    </button>
+          <button onClick={() => callAPI("analyze", setText)} className="translator-btn secondary">
+            📸 Analyze
+          </button>
 
-    <button onClick={clearAll} className="translator-btn danger" style ={{backgroundColor:"Red"}}>
-      ❌ Clear
-    </button>
-  </div>
+          <button onClick={handleExplain} className="translator-btn explain" disabled={loading}>
+            {loading ? "Working..." : "Explain"}
+          </button>
+        </div>
 
-  <div className="translator-controls">
-    <label className="translator-label">Language:</label>
-    <select className="translator-select" value={lang} onChange={(e) => setLang(e.target.value)}>
-      <option value="Hindi">Hindi</option>
-      <option value="Telugu">Telugu</option>
-      <option value="Tamil">Tamil</option>
-      <option value="Kannada">Kannada</option>
-      <option value="Malayalam">Malayalam</option>
-    </select>
+        <div className="translator-controls">
+          <label className="translator-label">Language:</label>
+          <select className="translator-select" value={lang} onChange={(e) => setLang(e.target.value)}>
+            <option value="English">English</option>
+            <option value="Hindi">Hindi</option>
+            <option value="Telugu">Telugu</option>
+            <option value="Tamil">Tamil</option>
+            <option value="Kannada">Kannada</option>
+            <option value="Malayalam">Malayalam</option>
+          </select>
 
-    <button onClick={handleTranslate} className="translator-btn primary" disabled={loading}>
-      {loading ? "Translating..." : "Translate"}
-    </button>
-  </div>
-</div>
+          <button onClick={handleTranslate} className="translator-btn primary" disabled={loading}>
+            {loading ? "Translating..." : "Translate"}
+          </button>
+        </div>
 
-
+        <button onClick={clearAll} className="translator-btn danger">
+          ❌ Clear
+        </button>
+      </div>
 
       {/* English Audio Always Available */}
       {text && (
@@ -254,9 +370,9 @@ export default function TranslatorSection() {
           <h4>📝 English Input:</h4>
           <p>{text}</p>
           <div>
-            <button onClick={() => playAudio(text)} className="translator-btn secondary">▶️ Play</button>
-            <button onClick={pauseAudio} className="translator-btn secondary" style={{ backgroundColor: "#ff9800" }}>⏸ Pause</button>
-            <button onClick={stopAudio} className="translator-btn secondary" style={{ backgroundColor: "#f44336" }}>⏹ Stop</button>
+            <button onClick={() => playAudio(text)} className="translator-btn play">▶️ Play</button>
+            <button onClick={pauseAudio} className="translator-btn pause">⏸ Pause</button>
+            <button onClick={stopAudio} className="translator-btn stop">⏹ Stop</button>
             <button onClick={() => downloadAudio(text, "English_audio.mp3")} className="translator-btn download">⬇️ Download</button>
           </div>
         </div>
@@ -268,10 +384,45 @@ export default function TranslatorSection() {
           <h4>🔄 Translated Output ({lang}):</h4>
           <p>{translated}</p>
           <div>
-            <button onClick={() => playAudio(translated)} className="translator-btn secondary">▶️ Play</button>
-            <button onClick={pauseAudio} className="translator-btn secondary" style={{ backgroundColor: "#ff9800" }}>⏸ Pause</button>
-            <button onClick={stopAudio} className="translator-btn secondary" style={{ backgroundColor: "#f44336" }}>⏹ Stop</button>
+            <button onClick={() => playAudio(translated)} className="translator-btn play">▶️ Play</button>
+            <button onClick={pauseAudio} className="translator-btn pause">⏸ Pause</button>
+            <button onClick={stopAudio} className="translator-btn stop">⏹ Stop</button>
             <button onClick={() => downloadAudio(translated, `${lang}_translation.mp3`)} className="translator-btn download">⬇️ Download</button>
+          </div>
+        </div>
+      )}
+
+      {/* Explanation Output (NEW) */}
+      {explanation && (
+        <div className="translator-output">
+          <h4>💡 Explanation ({lang}):</h4>
+          <p>{explanation}</p>
+          <div>
+            <button onClick={() => {
+              if (explainAudioUrl) {
+                if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+                audioRef.current = new Audio(explainAudioUrl);
+                audioRef.current.play().catch((e) => console.warn(e));
+              } else {
+                // fallback to server TTS for explanation text
+                playAudio(explanation);
+              }
+            }} className="translator-btn play">▶️ Play</button>
+
+            <button onClick={pauseAudio} className="translator-btn pause">⏸ Pause</button>
+
+            <button onClick={stopAudio} className="translator-btn stop">⏹ Stop</button>
+
+            <button onClick={() => {
+              if (explainAudioUrl) {
+                const a = document.createElement("a");
+                a.href = explainAudioUrl;
+                a.download = `${lang}_explanation.mp3`;
+                a.click();
+              } else {
+                downloadAudio(explanation, `${lang}_explanation.mp3`);
+              }
+            }} className="translator-btn download">⬇️ Download</button>
           </div>
         </div>
       )}

@@ -129,6 +129,59 @@ router.post("/analyze", upload.single("file"), async (req, res) => {
   }
 });
 
+// === Explain (text + TTS as base64, respects targetLang) ===
+router.post("/explain", async (req, res) => {
+  try {
+    const { text, style = "story", targetLang = "English" } = req.body;
+
+    if (!text || !text.trim()) {
+      return res.status(400).json({ error: "⚠️ Please provide input text to explain." });
+    }
+
+    // 1) Generate an easy-to-understand explanation in the requested language
+    const prompt = `You are a friendly teacher. Explain the following content in simple, clear language as a short ${style} that an average learner can easily understand. Keep it concise (3-6 short paragraphs). Use simple words, examples, and analogies if helpful. Do NOT include extra meta commentary or headings. Return only the explanation text in ${targetLang}.`;
+
+    const chatResp = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: prompt },
+        { role: "user", content: text }
+      ],
+      temperature: 0.6,
+      max_tokens: 800,
+    });
+
+    const explanation = (chatResp.choices?.[0]?.message?.content || "").trim();
+    if (!explanation) {
+      return res.status(500).json({ error: "Model did not return an explanation." });
+    }
+
+    // 2) Generate TTS audio for the explanation
+    // Note: We request TTS of the explanation. If the model returned text in targetLang,
+    // TTS will attempt to speak that text. Voice/language availability may vary.
+    const ttsResp = await client.audio.speech.create({
+      model: "gpt-4o-mini-tts",
+      voice: "alloy", // change if you want different voice
+      input: explanation,
+    });
+
+    // Convert TTS response to a Buffer then to base64
+    const audioArrayBuffer = await ttsResp.arrayBuffer();
+    const audioBuffer = Buffer.from(await audioArrayBuffer);
+    const audioBase64 = audioBuffer.toString("base64");
+
+    // Return both explanation text and base64 audio
+    res.json({
+      result: {
+        text: explanation,
+        audio: audioBase64,
+      },
+    });
+  } catch (err) {
+    console.error("❌ Explain error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // === Generate Similar Questions ===
 router.post("/similar", async (req, res) => {
