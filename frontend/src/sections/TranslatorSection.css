@@ -129,7 +129,7 @@
 
 /* Analyze */
 .translator-btn.secondary {
-  background: linear-gradient(90deg,#076f67,#22c2af); /* teal */
+  background: linear-gradient(90deg,#0d9488,#14b8a6); /* teal */
   color: #fff;
 }
 .translator-btn.secondary:hover { background: #0f766e; }
