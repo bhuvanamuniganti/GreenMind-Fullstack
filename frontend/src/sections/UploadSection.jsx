@@ -24,58 +24,7 @@ export default function UploadSection({ setMe }) {
 
   // ---------- Improved educational-item detector (RELAXED) ----------
   // kept for local checking but server is authoritative
-  function isEducationalItem(aiData) {
-    if (!aiData || typeof aiData !== "object") return { ok: false, why: "no-ai-data" };
 
-    if (typeof aiData.isEducational === "boolean") {
-      return { ok: !!aiData.isEducational, why: "explicit_flag", value: aiData.isEducational };
-    }
-
-    const textCandidates = [];
-    if (aiData.extractedText) textCandidates.push(String(aiData.extractedText));
-    if (aiData.ocrText) textCandidates.push(String(aiData.ocrText));
-    if (aiData.text) textCandidates.push(String(aiData.text));
-    if (aiData.title) textCandidates.push(String(aiData.title));
-    if (aiData.description) textCandidates.push(String(aiData.description));
-
-    const combinedText = textCandidates.join(" ").trim();
-
-    if (combinedText) {
-      const words = combinedText.match(/\b[A-Za-z]{2,}\b/g) || [];
-      if (words.length >= 6) {
-        return { ok: true, why: "ocr_text_words", wordsCount: words.length };
-      }
-    }
-
-    const keywords = [
-      "book","books","textbook","textbooks","notebook","notebooks","stationery","pen","pencil","marker","eraser","ruler",
-      "calculator","workbook","worksheet","exercise","study","learning","education","educational","school","curriculum",
-      "lesson","tutorial","guide","practice","exam","course","lecture","chapter","solution","answers","homework","syllabus",
-      "flashcard","atlas","map","globe","notepad","blackboard","whiteboard","text","reading","practice","workbook"
-    ];
-
-    const containsKeyword = (txt) => {
-      if (!txt) return false;
-      const lower = String(txt).toLowerCase();
-      for (const kw of keywords) if (lower.includes(kw)) return true;
-      return false;
-    };
-
-    if (containsKeyword(aiData.category)) return { ok: true, why: "category_keyword", matched: aiData.category };
-    if (containsKeyword(aiData.title)) return { ok: true, why: "title_keyword", matched: aiData.title };
-    if (containsKeyword(aiData.description)) return { ok: true, why: "description_keyword", matched: aiData.description };
-
-    const titleWords = (String(aiData.title || "").match(/\b[A-Za-z]{2,}\b/g) || []).length;
-    const descWords = (String(aiData.description || "").match(/\b[A-Za-z]{2,}\b/g) || []).length;
-    if (titleWords >= 3) return { ok: true, why: "title_word_count", titleWords };
-    if (descWords >= 5) return { ok: true, why: "description_word_count", descWords };
-
-    if ((aiData.quality || "").toLowerCase() === "high" && (aiData.title || aiData.description)) {
-      return { ok: true, why: "quality_high_with_meta" };
-    }
-
-    return { ok: false, why: "no_keyword_match", seen: { category: aiData.category, title: aiData.title, description: aiData.description } };
-  }
 
   // ==== UPLOAD (uses server-side strict classifier) ====
   async function handleUpload(e) {
