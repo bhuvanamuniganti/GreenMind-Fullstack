@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { API_BASE } from "../api";
+import "./UploadSection.css";
 
 export default function UploadSection({ setMe }) {
   const [file, setFile] = useState(null);
@@ -24,7 +25,7 @@ export default function UploadSection({ setMe }) {
 
   // ---------- Improved educational-item detector (RELAXED) ----------
   // kept for local checking but server is authoritative
-
+  // (not touched)
 
   // ==== UPLOAD (uses server-side strict classifier) ====
   async function handleUpload(e) {
@@ -44,14 +45,12 @@ export default function UploadSection({ setMe }) {
 
       const aiData = res.data || {};
 
-      // server already rejects low-quality & non-educational; but keep local check if desired
       if (aiData.quality && aiData.quality.toLowerCase() === "low") {
         setResult(null);
         toast.error("⚠️ Upload rejected: Low-quality");
         return;
       }
 
-      // accepted -> show AI details; server ensured it's educational
       setResult(aiData);
       setImageLoadError(false);
       if (setMe) setMe((prev) => ({ ...prev, points: (prev.points || 0) + 10 }));
@@ -59,10 +58,8 @@ export default function UploadSection({ setMe }) {
     } catch (err) {
       console.error("Upload failed (frontend):", err);
 
-      // Read server response for structured reasons
       const serverData = err?.response?.data;
       if (serverData) {
-        // Low quality
         if (serverData.reason === "low_quality" || (serverData.error && serverData.error.toLowerCase().includes("low quality"))) {
           setResult(null);
           setError("Upload rejected: Low-quality.");
@@ -70,7 +67,6 @@ export default function UploadSection({ setMe }) {
           return;
         }
 
-        // Classifier rejection (not educational)
         if (serverData.error && serverData.error.toLowerCase().includes("not recognized as an educational")) {
           setResult(null);
           const reasonText = serverData.reason ? ` (${serverData.reason})` : "";
@@ -79,7 +75,6 @@ export default function UploadSection({ setMe }) {
           return;
         }
 
-        // Classifier failure (strict)
         if (serverData.reason && (serverData.reason === "classifier_failure" || serverData.reason === "classifier_error" || serverData.reason === "non_json_response")) {
           setResult(null);
           setError("Upload failed: classifier error. Try a clearer photo or check server logs.");
@@ -87,14 +82,12 @@ export default function UploadSection({ setMe }) {
           return;
         }
 
-        // Generic server-provided message
         const msg = serverData.error || JSON.stringify(serverData);
         setError(msg);
         toast.error(`⚠️ Upload failed: ${msg}`);
         return;
       }
 
-      // Network / unknown error
       setError(err?.message || "Upload failed");
       toast.error("⚠️ Upload failed");
     } finally {
@@ -128,7 +121,20 @@ export default function UploadSection({ setMe }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ==== CAMERA ==== (unchanged)
+  // ---------- NEW: auto-select camera based on viewport ----------
+  useEffect(() => {
+    const chooseCameraForWidth = () => {
+      const largeBreakpoint = 1024;
+      setUseFront(window.innerWidth >= largeBreakpoint);
+    };
+
+    chooseCameraForWidth();
+    window.addEventListener("resize", chooseCameraForWidth);
+    return () => window.removeEventListener("resize", chooseCameraForWidth);
+  }, []);
+  // -----------------------------------------------------------------
+
+  // ==== CAMERA ====
   async function startCamera() {
     setError("");
     setFrameReady(false);
@@ -140,7 +146,8 @@ export default function UploadSection({ setMe }) {
     }
 
     try {
-      const constraints = { video: { facingMode: useFront ? "user" : { ideal: "environment" } } };
+      const facingMode = useFront ? "user" : { ideal: "environment" };
+      const constraints = { video: { facingMode } };
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
 
@@ -210,14 +217,6 @@ export default function UploadSection({ setMe }) {
           videoRef.current.pause();
         } catch {}
       }
-    }
-  }
-
-  async function switchCamera() {
-    setUseFront((p) => !p);
-    if (cameraOn) {
-      stopCamera();
-      setTimeout(() => startCamera(), 250);
     }
   }
 
@@ -317,7 +316,7 @@ export default function UploadSection({ setMe }) {
           }}
         >
           {!result && (
-            <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center", flexWrap: "wrap" }}>
+            <div className="button-row">
               <button className="action-btn primary" onClick={startCamera} type="button">📷 Open</button>
               <button className="action-btn danger" onClick={stopCamera} type="button">✖ Close</button>
               <button
@@ -328,7 +327,6 @@ export default function UploadSection({ setMe }) {
               >
                 📸 Capture
               </button>
-              <button className="action-btn info" onClick={switchCamera} type="button">🔄 {useFront ? "Front" : "Back"}</button>
 
               <label className="action-btn file" style={{ gap: 6 }}>
                 📁 File
@@ -465,7 +463,6 @@ export default function UploadSection({ setMe }) {
           </div>
         </div>
 
-        {/* Right: AI Details (shown when result exists) */}
         {result && (
           <div
             className="upload-right"
@@ -500,45 +497,6 @@ export default function UploadSection({ setMe }) {
       {error && <p style={{ color: "red", marginTop: 10 }}>{error}</p>}
 
       <canvas ref={canvasRef} style={{ display: "none" }} />
-
-      <style>{`
-        .action-btn {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          min-width: 84px;
-          height: 36px;
-          padding: 0 12px;
-          border-radius: 10px;
-          border: none;
-          font-size: 14px;
-          line-height: 1;
-          cursor: pointer;
-          transition: transform 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
-          box-shadow: 0 1px 3px rgba(16,24,40,0.06);
-          user-select: none;
-        }
-        .action-btn:active { transform: translateY(1px); }
-        .action-btn.disabled, .action-btn[disabled] { opacity: 0.6; cursor: not-allowed; transform: none; }
-
-        .action-btn.primary { background: linear-gradient(180deg,#06b6d4,#0891b2); color: #fff; }
-        .action-btn.capture { background: linear-gradient(180deg,#10b981,#059669); color: #fff; }
-        .action-btn.danger { background: linear-gradient(180deg,#f87171,#ef4444); color: #fff; }
-        .action-btn.info { background: linear-gradient(180deg,#60a5fa,#3b82f6); color: #fff; }
-        .action-btn.file { background: linear-gradient(180deg,#f3f4f6,#e5e7eb); color: #111; box-shadow: 0 1px 2px rgba(0,0,0,0.04); border: 1px solid rgba(15,23,42,0.06); }
-        .action-btn.upload { background: linear-gradient(180deg,#6366f1,#4f46e5); color: #fff; }
-        .action-btn.neutral { background: linear-gradient(180deg,#e6edf8,#dfeefb); color: #0f172a; }
-
-        .action-btn.small-absolute { min-width: auto; width: auto; height: 34px; padding: 6px 10px; position: absolute; top: 10px; right: 10px; }
-
-        @media (max-width: 768px) {
-          .upload-flex { flex-direction: column !important; gap: 14px !important; }
-          .upload-left { flex: 1 1 auto !important; max-width: 100% !important; }
-          .upload-right { flex: 1 1 auto !important; max-width: 100% !important; }
-          .action-btn { min-width: 74px; height: 36px; font-size: 14px; padding: 0 10px; }
-        }
-      `}</style>
     </div>
   );
 }
