@@ -85,7 +85,7 @@ function Header({ openAuth }) {
           <button
             className="btn"
             onClick={() => openAuth("login")}
-            style={{ backgroundColor: "Darkgreen", color: "White", marginLeft: 10, padding: "10px 14px", borderRadius: "999px", fontWeight: 900 }}
+            style={{ background: "Darkgreen", color: "White", marginLeft: 10, padding: "10px 14px", borderRadius: "999px", fontWeight: 900 }}
           >
             Login
           </button>

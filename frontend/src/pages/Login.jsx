@@ -111,7 +111,7 @@ export default function Login({ onSwitch } = {}) {
                 fontWeight: 700
               }}
             >
-              {showPassword ? "Hide" : "Show"}
+              {showPassword ? "🔒" : "👁️"}
             </button>
           </div>
         </label>

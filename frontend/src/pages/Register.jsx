@@ -112,19 +112,20 @@ export default function Register({ onSwitch } = {}) {
                 fontWeight: 700
               }}
             >
-              {showPassword ? "Hide" : "Show"}
+              {showPassword ? "🔒" : "👁️"}
             </button>
           </div>
         </label>
         <small style={{ color: "#4b5563" }}>Password must be at least 6 characters.</small>
 
         <div className="form-actions" style={{ marginTop: 12 }}>
-          <button className="btn primary" type="submit" disabled={loading}>
+          <button className="btn primary" type="submit" disabled={loading} style={{background:"#e87547ff"}}>
             {loading ? "Creating…" : "Create account"}
           </button>
 
           {typeof onSwitch === "function" ? (
-            <button className="btn ghost" type="button" onClick={() => onSwitch("login")} style={{ marginLeft: 10 }}>
+            <button className="btn ghost" type="button" onClick={() => onSwitch("login")}
+             style={{ background:"Darkgreen",marginLeft: 10 , color: "white"}}>
               Already have an account?
             </button>
           ) : (
