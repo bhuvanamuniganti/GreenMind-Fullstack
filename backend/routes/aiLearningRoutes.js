@@ -6,6 +6,7 @@ const fs = require("fs");
 
 const router = express.Router();
 const upload = multer({ dest: "uploads/" });
+const fetch = require("node-fetch");
 
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -243,7 +244,50 @@ router.post("/tts", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+router.post("/recommend-books", async (req, res) => {
+  try {
+    const { text = "", maxResults = 6 } = req.body;
+    if (!text || !text.trim()) return res.json({ result: [] });
 
+    // sanitize and limit
+    const q = encodeURIComponent(text.trim().slice(0, 300));
+    const max = Math.min(Number(maxResults) || 6, 20);
+
+    // Google Books simple endpoint (no API key required for basic usage)
+    const url = `https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=${max}`;
+
+    const r = await fetch(url);
+    if (!r.ok) {
+      console.error("Google Books fetch failed", await r.text());
+      return res.status(500).json({ result: [] });
+    }
+    const j = await r.json();
+    const items = Array.isArray(j.items) ? j.items.slice(0, max) : [];
+
+    const books = items.map((it) => {
+      const info = it.volumeInfo || {};
+      return {
+        title: info.title || "Untitled",
+        authors: info.authors || [],
+        publisher: info.publisher || "",
+        publishedDate: info.publishedDate || "",
+        description: info.description ? info.description.replace(/(<([^>]+)>)/gi, "").slice(0, 350) : "",
+        thumbnail:
+          (info.imageLinks && (info.imageLinks.thumbnail || info.imageLinks.smallThumbnail)) ||
+          null,
+        infoLink: info.infoLink || null,
+        identifiers: info.industryIdentifiers || [],
+        categories: info.categories || [],
+        pageCount: info.pageCount || null,
+      };
+    });
+
+    res.json({ result: books });
+  } catch (err) {
+    console.error("recommend-books error:", err);
+    res.status(500).json({ error: "Failed to fetch book suggestions" });
+  }
+});
 
 
 // === Flashcards Quiz Mode ===
