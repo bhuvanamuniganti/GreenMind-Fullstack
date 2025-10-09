@@ -22,12 +22,27 @@ function AnimatedButton({ children, onClick, style, disabled }) {
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
+    touchAction: "manipulation",
   };
+
+  const handlePressStart = (e) => {
+    if (e && e.type === "touchstart") e.preventDefault?.();
+    setPressed(true);
+  };
+  const handlePressEnd = () => setPressed(false);
+
   return (
     <button
-      onMouseDown={() => setPressed(true)}
-      onMouseUp={() => setPressed(false)}
-      onMouseLeave={() => setPressed(false)}
+      type="button"
+      onMouseDown={handlePressStart}
+      onMouseUp={handlePressEnd}
+      onMouseLeave={handlePressEnd}
+      onPointerDown={handlePressStart}
+      onPointerUp={handlePressEnd}
+      onPointerCancel={handlePressEnd}
+      onTouchStart={handlePressStart}
+      onTouchEnd={handlePressEnd}
+      onTouchCancel={handlePressEnd}
       onClick={(e) => { if (!disabled) onClick?.(e); }}
       style={{ ...base, ...style }}
       disabled={disabled}
@@ -131,9 +146,9 @@ const OralRecorder = forwardRef(function OralRecorder({ recorderQid = null, onFi
 
       rec.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunksRef.current.push(e.data); };
 
-      rec.onstart = () => { /* console.log("MediaRecorder: onstart"); */ };
-      rec.onpause = () => { /* console.log("MediaRecorder: onpause"); */ };
-      rec.onresume = () => { /* console.log("MediaRecorder: onresume"); */ };
+      rec.onstart = () => { /* start */ };
+      rec.onpause = () => { /* pause */ };
+      rec.onresume = () => { /* resume */ };
       rec.onerror = (ev) => { console.error("MediaRecorder error", ev); };
 
       rec.onstop = () => {
@@ -161,10 +176,23 @@ const OralRecorder = forwardRef(function OralRecorder({ recorderQid = null, onFi
   // start returns boolean success
   async function start() {
     if (disableControls) return false;
+
+    // use window.location to satisfy ESLint no-restricted-globals
+    try {
+      const loc = window.location;
+      const isLocalhost = loc.hostname === "localhost" || loc.hostname === "127.0.0.1";
+      const isSecure = loc.protocol === "https:" || isLocalhost;
+      if (!isSecure) {
+        // eslint-disable-next-line no-alert
+        alert("Microphone access on mobile often requires HTTPS. If you opened this page via an IP (http://...), the browser may block microphone access. Try an HTTPS URL (ngrok/localhost).");
+      }
+    } catch (e) { /* ignore */ }
+
     chunksRef.current = [];
     try { if (audioUrlRef.current) { try { URL.revokeObjectURL(audioUrlRef.current); } catch {} audioUrlRef.current = null; } } catch {}
 
     try {
+      // ensure we have a live stream
       try {
         const tracksOk = streamRef.current && streamRef.current.getTracks && streamRef.current.getTracks().some(t => t && t.readyState === 'live');
         if (!tracksOk) {
@@ -180,7 +208,11 @@ const OralRecorder = forwardRef(function OralRecorder({ recorderQid = null, onFi
       try { await audioCtxRef.current?.resume?.(); } catch (e) {}
 
       const rec = makeRecorder(streamRef.current);
-      if (!rec) { alert("Recording not supported in this browser"); return false; }
+      if (!rec) { // recording not supported
+        // eslint-disable-next-line no-alert
+        alert("Recording not supported in this browser");
+        return false;
+      }
       recRef.current = rec;
 
       try {
@@ -216,11 +248,13 @@ const OralRecorder = forwardRef(function OralRecorder({ recorderQid = null, onFi
         } catch (retryErr) {
           console.error("Retry start failed:", retryErr);
         }
+        // eslint-disable-next-line no-alert
         alert("Unable to start the microphone. Please check microphone permissions.");
         return false;
       }
     } catch (err) {
       console.error("start() top-level error:", err);
+      // eslint-disable-next-line no-alert
       alert("Microphone initialization failed — open console for details.");
       try { streamRef.current?.getTracks()?.forEach(t => t.stop()); } catch {}
       streamRef.current = null;
@@ -272,9 +306,10 @@ const OralRecorder = forwardRef(function OralRecorder({ recorderQid = null, onFi
   function clearAll() {
     setRecording(false); recordingRef.current = false;
     setPaused(false); pausedRef.current = false;
-    try { if (audioUrlRef.current) { URL.revokeObjectURL(audioUrlRef.current); audioUrlRef.current = null; } } catch {}
+    try { if (audioUrlRef.current) { URL.revokeObjectURL(audioUrlRef.current); } } catch {}
+    try { if (audioElRef.current) { audioElRef.current.src = ""; } } catch {}
+    audioUrlRef.current = null;
     chunksRef.current = [];
-    if (audioElRef.current) audioElRef.current.src = "";
     try { onFinalBlob?.(null); } catch {}
     try { onStopRecording?.(recorderQid, null); } catch {}
   }
@@ -349,7 +384,6 @@ export default function OralPracticeFromPhotoSection() {
     return () => { try { if (prev) URL.revokeObjectURL(prev); } catch {} };
   }, [preview]);
 
-  // cleanup camera if left open on unmount
   useEffect(() => {
     return () => {
       try {
@@ -366,54 +400,31 @@ export default function OralPracticeFromPhotoSection() {
     setOralBlob(prev => ({ ...prev, [qid]: blob || null }));
   }
 
-  // improved natural Q&A generator (heuristic-based, produces more natural questions)
+  // improved natural Q&A generator (heuristic-based)
   function sentenceToQuestionAndAnswer(sentence) {
     const s = sentence.trim();
     if (!s) return null;
     const lower = s.toLowerCase();
-
-    // If sentence already contains a WH word or is plainly a definition, create an appropriate question.
     const whWords = ["who", "what", "when", "where", "why", "how", "which"];
     for (const w of whWords) {
-      // cheap check: if starts with wh-word return as Q
       if (lower.startsWith(w + " ")) {
         return { question: s.endsWith("?") ? s : s + "?", answer: s.replace(/\?$/, "") };
       }
     }
-
-    // if sentence contains "is/are/was/were" produce "What is X?" or "How would you describe X?"
     const copulaMatch = s.match(/^(.+?)\s+(is|are|was|were|means|means that)\s+(.+)$/i);
     if (copulaMatch) {
       const subject = copulaMatch[1].trim();
       const remainder = copulaMatch[3].trim().replace(/\.$/, "");
-      return {
-        question: `What does "${subject}" refer to?`,
-        answer: remainder
-      };
+      return { question: `What does "${subject}" refer to?`, answer: remainder };
     }
-
-    // if sentence contains "because" or "so" create a why question
     if (/\bbecause\b/i.test(s) || /\bso\b/i.test(s)) {
-      return {
-        question: `Why does this happen: "${s.replace(/\.$/, "")}"?`,
-        answer: s
-      };
+      return { question: `Why does this happen: "${s.replace(/\.$/, "")}"?`, answer: s };
     }
-
-    // if it's a short fact (<= 10 words), ask "What is X?" (treat whole sentence as definition)
     const words = s.split(/\s+/).filter(Boolean);
     if (words.length <= 10) {
-      return {
-        question: `What does this mean: "${s.replace(/\.$/, "")}"?`,
-        answer: s
-      };
+      return { question: `What does this mean: "${s.replace(/\.$/, "")}"?`, answer: s };
     }
-
-    // default: ask for a short summary/explanation
-    return {
-      question: `Summarize this in one sentence: "${s.substring(0, 120)}${s.length>120?"...":""}"`,
-      answer: s
-    };
+    return { question: `Summarize this in one sentence: "${s.substring(0, 120)}${s.length>120?"...":""}"`, answer: s };
   }
 
   function generateQAFromText(text, maxQuestions = 8) {
@@ -428,7 +439,6 @@ export default function OralPracticeFromPhotoSection() {
         q.push({ id: `${Date.now()}-${idCounter++}`, question: pair.question, answer: pair.answer, type: "short", options: null });
       }
     }
-    // if nothing parsed, fall back to chunked summary Qs
     if (!q.length && text.trim()) {
       const chunk = text.trim().slice(0, 400);
       q.push({ id: `${Date.now()}-1`, question: `Summarize this passage: "${chunk.substring(0,120)}${chunk.length>120?"...":""}"`, answer: chunk, type: "short", options: null });
@@ -436,7 +446,6 @@ export default function OralPracticeFromPhotoSection() {
     return { source_text: text, questions: q };
   }
 
-  // call server /similar to get more questions if backend returned few/invalid Qs
   async function fetchMoreQuestionsFromServer(baseText, prevQuestions = []) {
     try {
       const res = await fetch(`${API_BASE}/api/practice-image/similar`, {
@@ -455,9 +464,10 @@ export default function OralPracticeFromPhotoSection() {
     }
   }
 
-  // ANALYZE (unchanged flow except we use the better generator)
+  // ANALYZE
   async function analyze() {
     if (!file && !textInput.trim()) {
+      // eslint-disable-next-line no-alert
       alert("Please paste text or upload an image.");
       return;
     }
@@ -482,6 +492,7 @@ export default function OralPracticeFromPhotoSection() {
       if (ctype.includes("text/html")) {
         const text = await res.text().catch(() => "");
         console.error("Server returned HTML when expecting JSON:", text);
+        // eslint-disable-next-line no-alert
         alert("Analyze failed: server returned HTML. Check backend/proxy.");
         setLoading(false);
         return;
@@ -494,6 +505,7 @@ export default function OralPracticeFromPhotoSection() {
       if (!res.ok) {
         console.error("Analyze failed body:", raw);
         const msg = data?.error || data?.message || raw || `Analyze failed (${res.status})`;
+        // eslint-disable-next-line no-alert
         alert(msg);
         setLoading(false);
         return;
@@ -519,13 +531,11 @@ export default function OralPracticeFromPhotoSection() {
       }
 
       if (Array.isArray(parsed.questions) && parsed.questions.length) {
-        // final sanitization: remove empty / invalid entries
         parsed.questions = parsed.questions
           .map((q, i) => ({ id: q.id ?? i+1, question: (q.question||"").trim(), answer: (q.answer||"").trim() }))
           .filter(q => q.question && q.answer);
 
         if (!parsed.questions.length) {
-          // fallback to client-side split
           parsed = generateQAFromText(parsed.source_text || textInput || "(fallback)", 8);
         }
 
@@ -533,6 +543,7 @@ export default function OralPracticeFromPhotoSection() {
         setOralBlob({}); setOralText({}); setPronFeedbackMap({}); setScoreMap({});
         setCurrentIndex(0);
       } else {
+        // eslint-disable-next-line no-alert
         alert("Could not create questions from the provided input.");
       }
     } catch (err) {
@@ -548,7 +559,7 @@ export default function OralPracticeFromPhotoSection() {
   // transcription
   async function transcribeOne(qid, blobParam = null) {
     const blob = blobParam || oralBlob[qid];
-    if (!blob) { alert("Please record your answer first."); return null; }
+    if (!blob) { /* eslint-disable-next-line no-alert */ alert("Please record your answer first."); return null; }
     setLoading(true);
     try {
       const form = new FormData();
@@ -561,6 +572,7 @@ export default function OralPracticeFromPhotoSection() {
       if (!r.ok) {
         const txt = await r.text().catch(() => "");
         console.error("Transcribe failed:", r.status, txt);
+        // eslint-disable-next-line no-alert
         alert("Transcription failed. Check backend logs.");
         return null;
       }
@@ -570,6 +582,7 @@ export default function OralPracticeFromPhotoSection() {
       return text;
     } catch (err) {
       console.error("transcribeOne error", err);
+      // eslint-disable-next-line no-alert
       alert("Transcription error");
       return null;
     } finally {
@@ -618,52 +631,6 @@ export default function OralPracticeFromPhotoSection() {
     return { overallScore, feedback: `${correct} of ${expWords.length} words OK`, words };
   }
 
-  // TTS + feedback audio (keeps ref so we can pause/stop)
-  async function playCorrectPronunciation(text, attachRef = false) {
-    if (!text) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/learning/tts`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
-      });
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = new Audio(url);
-      if (attachRef) {
-        if (feedbackAudioRef.current) {
-          try { feedbackAudioRef.current.pause(); } catch {}
-          try { URL.revokeObjectURL(feedbackAudioRef.current.src); } catch {}
-        }
-        feedbackAudioRef.current = a;
-        setFeedbackPlaying(true);
-        a.onended = () => { try { URL.revokeObjectURL(url); } catch {}; feedbackAudioRef.current = null; setFeedbackPlaying(false); };
-        a.onplay = () => { setFeedbackPlaying(true); };
-        a.onpause = () => { /* not tracking paused state anymore */ };
-      } else {
-        a.onended = () => { try { URL.revokeObjectURL(url); } catch {}; };
-      }
-      await a.play();
-      return new Promise((resolve) => { a.onended = () => { try { URL.revokeObjectURL(url); } catch {} ; resolve(); }; });
-    } catch (err) {
-      console.error("playCorrectPronunciation error", err);
-    }
-  }
-
-  async function speakWithParentAnimation(text, opts = {}) {
-    if (!text) return;
-    try {
-      if (parentPhotoWrapRef.current) parentPhotoWrapRef.current.classList.add("speaking");
-      await playCorrectPronunciation(text, true);
-    } finally {
-      if (parentPhotoWrapRef.current) parentPhotoWrapRef.current.classList.remove("speaking");
-    }
-  }
-
-  function pauseFeedback() { try { feedbackAudioRef.current?.pause(); } catch (e) { console.error(e); } }
-  function resumeFeedback() { try { feedbackAudioRef.current?.play(); } catch (e) { console.error(e); } }
-  function stopFeedback() { try { if (feedbackAudioRef.current) { feedbackAudioRef.current.pause(); feedbackAudioRef.current.currentTime = feedbackAudioRef.current.duration || 0; try { URL.revokeObjectURL(feedbackAudioRef.current.src); } catch {} feedbackAudioRef.current = null; } setFeedbackPlaying(false); } catch (e) { console.error(e); } }
-
   // submit -> evaluate + spoken feedback
   async function submitCurrent() {
     if (!payload) return;
@@ -673,6 +640,7 @@ export default function OralPracticeFromPhotoSection() {
 
     const blob = oralBlob[qid];
     if (!blob && !oralText[qid]) {
+      // eslint-disable-next-line no-alert
       alert("Please record your answer first (or type it into the transcript box).");
       return;
     }
@@ -758,6 +726,52 @@ export default function OralPracticeFromPhotoSection() {
     });
   }
 
+  // TTS + feedback audio (keeps ref so we can pause/stop)
+  async function playCorrectPronunciation(text, attachRef = false) {
+    if (!text) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/learning/tts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = new Audio(url);
+      if (attachRef) {
+        if (feedbackAudioRef.current) {
+          try { feedbackAudioRef.current.pause(); } catch {}
+          try { URL.revokeObjectURL(feedbackAudioRef.current.src); } catch {}
+        }
+        feedbackAudioRef.current = a;
+        setFeedbackPlaying(true);
+        a.onended = () => { try { URL.revokeObjectURL(url); } catch {}; feedbackAudioRef.current = null; setFeedbackPlaying(false); };
+        a.onplay = () => { setFeedbackPlaying(true); };
+        a.onpause = () => { /* not tracking paused state anymore */ };
+      } else {
+        a.onended = () => { try { URL.revokeObjectURL(url); } catch {}; };
+      }
+      await a.play();
+      return new Promise((resolve) => { a.onended = () => { try { URL.revokeObjectURL(url); } catch {} ; resolve(); }; });
+    } catch (err) {
+      console.error("playCorrectPronunciation error", err);
+    }
+  }
+
+  async function speakWithParentAnimation(text, opts = {}) {
+    if (!text) return;
+    try {
+      if (parentPhotoWrapRef.current) parentPhotoWrapRef.current.classList.add("speaking");
+      await playCorrectPronunciation(text, true);
+    } finally {
+      if (parentPhotoWrapRef.current) parentPhotoWrapRef.current.classList.remove("speaking");
+    }
+  }
+
+  function pauseFeedback() { try { feedbackAudioRef.current?.pause(); } catch (e) { console.error(e); } }
+  function resumeFeedback() { try { feedbackAudioRef.current?.play(); } catch (e) { console.error(e); } }
+  function stopFeedback() { try { if (feedbackAudioRef.current) { feedbackAudioRef.current.pause(); feedbackAudioRef.current.currentTime = feedbackAudioRef.current.duration || 0; try { URL.revokeObjectURL(feedbackAudioRef.current.src); } catch {} feedbackAudioRef.current = null; } setFeedbackPlaying(false); } catch (e) { console.error(e); } }
+
   // reveal answer and optionally speak it (do NOT overwrite transcript)
   async function revealAnswerAndSpeak() {
     if (!payload) return;
@@ -765,7 +779,7 @@ export default function OralPracticeFromPhotoSection() {
     if (!q) return;
     const qid = q.id;
     const answerText = q.answer || "";
-    if (!answerText) { alert("No answer available for this question."); return; }
+    if (!answerText) { /* eslint-disable-next-line no-alert */ alert("No answer available for this question."); return; }
     setRevealedAnswers(prev => ({ ...prev, [qid]: answerText }));
     try { await speakWithParentAnimation(`Answer: ${answerText}`, { feedback: true }); } catch (e) { console.error(e); }
   }
@@ -778,7 +792,7 @@ export default function OralPracticeFromPhotoSection() {
     return "Good effort! Listening closely and reattempting will help — you got this! ❤️";
   }
 
-  // --- Camera: use effect to start stream after video mounts (fixes timing) ---
+  // --- Camera: use effect to start stream after video mounts ---
   useEffect(() => {
     let mounted = true;
     async function begin() {
@@ -791,6 +805,7 @@ export default function OralPracticeFromPhotoSection() {
         }
       } catch (err) {
         console.error("startCamera error", err);
+        // eslint-disable-next-line no-alert
         alert("Unable to access camera. Please check permissions or try a different device.");
         setCameraActive(false);
       }
@@ -799,10 +814,7 @@ export default function OralPracticeFromPhotoSection() {
     return () => { mounted = false; };
   }, [cameraActive]);
 
-  function startCamera() {
-    setCameraActive(true);
-  }
-
+  function startCamera() { setCameraActive(true); }
   function stopCamera() {
     try {
       if (cameraStreamRef.current) {
@@ -813,11 +825,8 @@ export default function OralPracticeFromPhotoSection() {
         videoRef.current.pause();
         try { videoRef.current.srcObject = null; } catch {}
       }
-    } catch (e) {
-      console.error("stopCamera error", e);
-    } finally {
-      setCameraActive(false);
-    }
+    } catch (e) { console.error("stopCamera error", e); }
+    finally { setCameraActive(false); }
   }
 
   function takePhoto() {
@@ -832,17 +841,12 @@ export default function OralPracticeFromPhotoSection() {
       const ctx = canvas.getContext("2d");
       ctx.drawImage(vid, 0, 0, w, h);
       canvas.toBlob((blob) => {
-        if (!blob) {
-          alert("Capture failed");
-          return;
-        }
+        if (!blob) { /* eslint-disable-next-line no-alert */ alert("Capture failed"); return; }
         const f = new File([blob], `camera-${Date.now()}.jpg`, { type: blob.type || "image/jpeg" });
         processFileAndPreview(f);
         stopCamera();
       }, "image/jpeg", 0.92);
-    } catch (err) {
-      console.error("takePhoto error", err);
-    }
+    } catch (err) { console.error("takePhoto error", err); }
   }
 
   // file handling + preview
@@ -878,6 +882,7 @@ export default function OralPracticeFromPhotoSection() {
     ? payload.questions[currentIndex]
     : null;
 
+  // ---------------- UI ----------------
   return (
     <div className="op-root" style={{ padding: 20, maxWidth: 1100, margin: "0 auto" }}>
       <h2 className="page-title">🎙️ Oral Practice</h2>
@@ -958,21 +963,11 @@ export default function OralPracticeFromPhotoSection() {
 
               {/* buttons row */}
               <div className="file-row">
-                <input id="upload-file" type="file" accept="image/*,application/pdf"
-                 style={{ display: "none" }} onChange={onPracticeFileChange} />
-                <label htmlFor="upload-file" className="btn" 
-                style={{ cursor: "pointer", background:"#b72b6fff", color:"#fff" }}>📂 Choose Image / PDF</label>
-
-                {/* Camera button now triggers in-app camera preview */}
-                <button onClick={() => startCamera()} className="btn btn-primary" 
-                style={{ cursor: "pointer", background:"#341382ee"}}>📷 Camera</button>
-
-                <AnimatedButton onClick={analyze} style={{ background: "#045038ff" }} disabled={loading}>
-                  {loading ? "Analyzing…" : "Analyze & Create Questions"}
-                </AnimatedButton>
-
-                <AnimatedButton onClick={() => { setFile(null); if (preview) try { URL.revokeObjectURL(preview); }
-                 catch {} setPreview(null); setTextInput(""); }} style={{ background: "#dc2626" }}>Clear</AnimatedButton>
+                <input id="upload-file" type="file" accept="image/*,application/pdf" style={{ display: "none" }} onChange={onPracticeFileChange} />
+                <label htmlFor="upload-file" className="btn" style={{ cursor: "pointer", background:"#b72b6fff", color:"#fff" }}>📂 Choose Image / PDF</label>
+                <button onClick={() => startCamera()} className="btn btn-primary" style={{ cursor: "pointer", background:"#341382ee"}}>📷 Camera</button>
+                <AnimatedButton onClick={analyze} style={{ background: "#045038ff" }} disabled={loading}>{loading ? "Analyzing…" : "Analyze & Create Questions"}</AnimatedButton>
+                <AnimatedButton onClick={() => { setFile(null); if (preview) try { URL.revokeObjectURL(preview); } catch {} setPreview(null); setTextInput(""); }} style={{ background: "#dc2626" }}>Clear</AnimatedButton>
               </div>
             </div>
           )}
@@ -983,8 +978,7 @@ export default function OralPracticeFromPhotoSection() {
               <div className="question-header">
                 <div className="question-title">Question {currentIndex + 1} / {payload.questions.length}</div>
                 <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-                  <AnimatedButton 
-                  onClick={() => { setPayload(null); setOralBlob({}); setOralText({}); setPronFeedbackMap({}); setScoreMap({}); }} style={{ background: "#e10c0cff" }}>Reset</AnimatedButton>
+                  <AnimatedButton onClick={() => { setPayload(null); setOralBlob({}); setOralText({}); setPronFeedbackMap({}); setScoreMap({}); }} style={{ background: "#e10c0cff" }}>Reset</AnimatedButton>
                   <AnimatedButton onClick={() => { const w = window.open("", "_blank"); if (!w) return alert("Popup blocked"); const html = `<html><body><h1>Question Paper</h1>${payload.questions.map((q,idx)=>`<div><strong>${idx+1}.</strong> ${q.question}</div>`).join("")}</body></html>`; w.document.write(html); w.document.close(); }} style={{ background: "#0284c7" }}>🖨️ Print Paper</AnimatedButton>
                 </div>
               </div>
@@ -993,12 +987,11 @@ export default function OralPracticeFromPhotoSection() {
                 <div className="question-text">{currentQuestion.question}</div>
 
                 <div className="qa-row">
-                  <AnimatedButton onClick={() => askQuestionAndStartUsingRecordedExplanation()} 
-                  style={{ background: "#059669" }} disabled={isAsking}>🎧 Ask</AnimatedButton>
+                  <AnimatedButton onClick={() => askQuestionAndStartUsingRecordedExplanation()} style={{ background: "#059669" }} disabled={isAsking}>🎧 Ask</AnimatedButton>
                   <AnimatedButton onClick={revealAnswerAndSpeak} style={{ background: "#7c3aed" }}>📝 Answer</AnimatedButton>
                 </div>
 
-                {/* Answer area (explicitly placed under Ask/Answer) */}
+                {/* Answer area */}
                 <div className="answer-area">
                   {revealedAnswers[currentQuestion.id] ? (
                     <div className="answer-box">
@@ -1006,9 +999,7 @@ export default function OralPracticeFromPhotoSection() {
                       <div style={{ marginTop: 6 }}>{revealedAnswers[currentQuestion.id]}</div>
                     </div>
                   ) : (
-                    <div className="answer-placeholder">
-                      Click "Answer" to reveal the correct answer here.
-                    </div>
+                    <div className="answer-placeholder">Click "Answer" to reveal the correct answer here.</div>
                   )}
                 </div>
 
@@ -1021,8 +1012,11 @@ export default function OralPracticeFromPhotoSection() {
                       onFinalBlob={(blob) => onBlobCapture(currentQuestion.id, blob)}
                       onStopRecording={async (qid, blob) => {
                         onBlobCapture(qid, blob);
-                        if (blob) await transcribeOne(qid, blob);
-                        else setOralText(prev => ({ ...prev, [qid]: "" }));
+                        if (blob) {
+                          await transcribeOne(qid, blob);
+                        } else {
+                          setOralText(prev => ({ ...prev, [qid]: "" }));
+                        }
                       }}
                       disableControls={feedbackPlaying}
                     />
@@ -1036,12 +1030,22 @@ export default function OralPracticeFromPhotoSection() {
                       <AnimatedButton onClick={reattemptCurrent} style={{ background: "#dc2626" }}>Reattempt</AnimatedButton>
                       <div style={{ flex: 1 }} />
                       <AnimatedButton onClick={() => {
-                      recorderRef.current?.clearAll?.(); 
-                      setCurrentIndex(i => Math.max(0, i - 1));}} 
-                      style={{ background: "#20076bff" }} disabled={currentIndex <= 0}>Prev</AnimatedButton>
+                        // reset current audio then move prev
+                        if (currentQuestion) {
+                          try { recorderRef.current?.clearAll?.(); } catch {}
+                          setOralBlob(prev => { const copy = { ...prev }; delete copy[currentQuestion.id]; return copy; });
+                          setOralText(prev => { const copy = { ...prev }; delete copy[currentQuestion.id]; return copy; });
+                        }
+                        setCurrentIndex(i => Math.max(0, i - 1));
+                      }} style={{ background: "#20076bff" }} disabled={currentIndex <= 0}>Prev</AnimatedButton>
                       <AnimatedButton onClick={() => {
-                         recorderRef.current?.clearAll?.();   // ✅ reset audio + 00 time
-                        setCurrentIndex(i => Math.min(payload.questions.length - 1, i + 1));}} style={{ background: "#2563eb" }} disabled={currentIndex >= payload.questions.length - 1}>Next</AnimatedButton>
+                        if (currentQuestion) {
+                          try { recorderRef.current?.clearAll?.(); } catch {}
+                          setOralBlob(prev => { const copy = { ...prev }; delete copy[currentQuestion.id]; return copy; });
+                          setOralText(prev => { const copy = { ...prev }; delete copy[currentQuestion.id]; return copy; });
+                        }
+                        setCurrentIndex(i => Math.min(payload.questions.length - 1, i + 1));
+                      }} style={{ background: "#2563eb" }} disabled={currentIndex >= payload.questions.length - 1}>Next</AnimatedButton>
                     </div>
                   </div>
                 </div>
@@ -1055,8 +1059,7 @@ export default function OralPracticeFromPhotoSection() {
                         <div key={w.index} className={`pf-word ${w.mispronounced ? "bad" : "good"}`}>
                           <div className="word-main">{w.expected}</div>
                           <div className="word-sub">{w.mispronounced ? `you said: «${w.spoken || "—"}»` : "good"}</div>
-                          <button onClick={() => { speakWithParentAnimation(w.playText || w.expected, { feedback: true }); }}
-                           className="btn small">🔊</button>
+                          <button onClick={() => { speakWithParentAnimation(w.playText || w.expected, { feedback: true }); }} className="btn small">🔊</button>
                         </div>
                       ))}
                     </div>
