@@ -8,6 +8,9 @@ export default function TranslatorSection() {
   const [translated, setTranslated] = useState("");
   const [lang, setLang] = useState("Hindi");
 
+  // NEW: detected input language
+  const [detectedLang, setDetectedLang] = useState("English");
+
   // split loading flags so only relevant button shows working...
   const [analyzeLoading, setAnalyzeLoading] = useState(false);
   const [translateLoading, setTranslateLoading] = useState(false);
@@ -40,6 +43,39 @@ export default function TranslatorSection() {
       console.error("base64 to blob error:", e);
       return null;
     }
+  };
+
+  // NEW: detect language from text using Unicode script ranges (fast, client-side)
+  const detectLanguageFromText = (inputText) => {
+    if (!inputText || !inputText.trim()) return "English";
+
+    // trim and pick a slice to be faster
+    const sample = inputText.trim().slice(0, 400);
+
+    // Unicode regexes for common Indian scripts + Latin
+    const patterns = [
+      { lang: "Hindi", re: /[\u0900-\u097F]/ }, // Devanagari (Hindi, Marathi, Nepali, etc.)
+      { lang: "Telugu", re: /[\u0C00-\u0C7F]/ }, // Telugu
+      { lang: "Tamil", re: /[\u0B80-\u0BFF]/ }, // Tamil
+      { lang: "Kannada", re: /[\u0C80-\u0CFF]/ }, // Kannada
+      { lang: "Malayalam", re: /[\u0D00-\u0D7F]/ }, // Malayalam
+      // You can add more checks here if needed (e.g., Gujarati, Bengali, etc.)
+    ];
+
+    for (const p of patterns) {
+      if (p.re.test(sample)) return p.lang;
+    }
+
+    // If mostly ASCII letters, assume English; otherwise do a simple fallback scan:
+    const nonWhitespace = sample.replace(/\s/g, "");
+    const asciiLetters = (nonWhitespace.match(/[A-Za-z]/g) || []).length;
+    const nonAscii = nonWhitespace.length - asciiLetters;
+
+    // heuristics
+    if (asciiLetters > Math.max(5, nonAscii)) return "English";
+
+    // fallback: return English if uncertain
+    return "English";
   };
 
   // === Book recommendations (only called after Analyze) ===
@@ -82,6 +118,10 @@ export default function TranslatorSection() {
       // support both formats: { result: "text" } or { result: "text", books: [...] }
       const extracted = (data?.result) || "";
       setText(extracted);
+
+      // NEW: detect language from extracted text
+      const detected = detectLanguageFromText(extracted);
+      setDetectedLang(detected);
 
       // If server returned books inline (Option B), use them.
       if (Array.isArray(data?.books) && data.books.length > 0) {
@@ -239,6 +279,7 @@ export default function TranslatorSection() {
     setTranslated("");
     setExplanation("");
     setBooks([]);
+    setDetectedLang("English"); // reset detected language
     if (explainAudioUrl) {
       URL.revokeObjectURL(explainAudioUrl);
       setExplainAudioUrl(null);
@@ -249,6 +290,7 @@ export default function TranslatorSection() {
     }
   };
 
+  // keep cleanup on unmount
   useEffect(() => {
     return () => {
       if (explainAudioUrl) URL.revokeObjectURL(explainAudioUrl);
@@ -261,6 +303,16 @@ export default function TranslatorSection() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // NEW: when user types or pastes text, update detected language live
+  const handleTextChange = (val) => {
+    setText(val);
+    const detected = detectLanguageFromText(val);
+    setDetectedLang(detected);
+    // don't clear books (user might want to keep suggestions)
+    setTranslated("");
+    setExplanation("");
+  };
+
   return (
     <div className="translator-container">
       <h2 className="translator-title">🌍 AI Translator</h2>
@@ -271,7 +323,7 @@ export default function TranslatorSection() {
           rows="6"
           placeholder="Paste text here or upload an image..."
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => handleTextChange(e.target.value)}
           style={{
             width: "100%",
             padding: "16px",
@@ -341,6 +393,7 @@ export default function TranslatorSection() {
                 setText("");
                 setTranslated("");
                 setExplanation("");
+                setDetectedLang("English"); // reset until analyze returns text
               }}
             />
           </label>
@@ -376,13 +429,13 @@ export default function TranslatorSection() {
       {/* English Input */}
       {text && (
         <div className="translator-output">
-          <h4>📝 English Input:</h4>
+          <h4>📝 Input ({detectedLang}):</h4>
           <p>{text}</p>
           <div>
             <button onClick={() => playAudio(text)} className="translator-btn play">▶️ Play</button>
             <button onClick={pauseAudio} className="translator-btn pause">⏸ Pause</button>
             <button onClick={stopAudio} className="translator-btn stop">⏹ Stop</button>
-            <button onClick={() => downloadAudio(text, "English_audio.mp3")} className="translator-btn download">⬇️ Download</button>
+            <button onClick={() => downloadAudio(text, "Input_audio.mp3")} className="translator-btn download">⬇️ Download</button>
           </div>
         </div>
       )}
@@ -450,7 +503,6 @@ export default function TranslatorSection() {
                 <div style={{ fontSize: 12, color: "#666", height: 40, overflow: "hidden" }}>{b.description || ""}</div>
                 <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
                   {b.infoLink && <a href={b.infoLink} target="_blank" rel="noreferrer" className="translator-btn play" style={{ padding: "6px 8px", fontSize: 13 }}>View</a>}
-                  
                 </div>
               </div>
             </div>
