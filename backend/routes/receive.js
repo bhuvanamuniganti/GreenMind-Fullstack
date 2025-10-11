@@ -26,24 +26,30 @@ function auth(req, res, next) {
    Core "Receive" Endpoints
    ========================= */
 
-// List all available uploads except my own & unclaimed
+// List all available uploads (include my own, but mark which are mine) & unclaimed
 router.get("/receive", auth, (req, res) => {
   const rows = db
     .prepare(
-      `SELECT u.id, u.user_id,
+      `SELECT u.id,
+              u.user_id,
               '/uploads/' || u.filename AS imageUrl,
-              u.title, u.category, u.description, u.quality, u.created_at,
-              usr.full_name AS uploader_name
+              u.title,
+              u.category,
+              u.description,
+              u.quality,
+              u.created_at,
+              usr.full_name AS uploader_name,
+              (u.user_id = ?) AS isMine
        FROM uploads u
        JOIN users usr ON usr.id = u.user_id
-       WHERE u.user_id <> ?
-         AND u.claimed_by IS NULL
+       WHERE u.claimed_by IS NULL
        ORDER BY u.created_at DESC`
     )
     .all(req.user.sub);
 
   res.json(rows);
 });
+
 
 // Claim an item -> HARD DELETE (to prevent overload)
 router.post("/receive/claim/:id", auth, (req, res) => {

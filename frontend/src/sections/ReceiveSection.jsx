@@ -1,8 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { API_BASE } from "../api";
 import axios from "axios";
-import html2canvas from "html2canvas";
 import { toast } from "react-toastify";
+import "./ReceiveSection.css";
+
+const PLACEHOLDER_SVG =
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="100%" height="100%" fill="#f8fafc"/><g fill="#cbd5e1" font-family="Arial,Helvetica,sans-serif" font-size="18"><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle">No image</text></g></svg>`
+  );
 
 export default function ReceiveSection({ setMe }) {
   const [items, setItems] = useState([]);
@@ -13,11 +19,6 @@ export default function ReceiveSection({ setMe }) {
   const [reqTitle, setReqTitle] = useState("");
   const [reqDesc, setReqDesc] = useState("");
   const [reqCategory, setReqCategory] = useState("");
-
-  // certificate overlay
-  const [showCert, setShowCert] = useState(false);
-  const [cert, setCert] = useState(null); // {title, subtitle, body, hashtags:[]}
-  const certRef = useRef(null);
 
   useEffect(() => {
     (async () => {
@@ -35,7 +36,7 @@ export default function ReceiveSection({ setMe }) {
     })();
   }, []);
 
-  // claim and then show certificate
+  // claim and then show simple success toast
   async function handleClaim(item) {
     try {
       await axios.post(
@@ -48,31 +49,6 @@ export default function ReceiveSection({ setMe }) {
       setItems((prev) => prev.filter((x) => x.id !== item.id));
       if (setMe) setMe((p) => ({ ...p, points: (p.points || 0) - 10 }));
 
-      // fetch certificate text (AI with fallback)
-      try {
-        const r = await axios.post(
-          `${API_BASE}/api/receive/thanks`,
-          {
-            userName: "You",
-            itemTitle: item.title || "a resource",
-            category: item.category || "Learning",
-          },
-          { withCredentials: true }
-        );
-        setCert(r.data);
-      } catch {
-        setCert({
-          title: "Certificate of Appreciation",
-          subtitle: "For Supporting Smart Learning & Reuse",
-          body:
-            `Thank you for receiving “${item.title || "a resource"}”. ` +
-            `You helped reduce waste and support an affordable learning journey. ` +
-            `Every small act like this inspires others to share and receive. 💚`,
-          hashtags: ["#ShareToLearn", "#ReduceWaste", "#GreenMindAI"],
-        });
-      }
-
-      setShowCert(true);
       toast.success("Item claimed!");
     } catch (err) {
       console.error("Claim failed", err);
@@ -80,22 +56,13 @@ export default function ReceiveSection({ setMe }) {
     }
   }
 
-  
-
-  // download the certificate as PNG
-  async function downloadCertPNG() {
-    if (!certRef.current) return;
-    const canvas = await html2canvas(certRef.current, { backgroundColor: null, scale: 2 });
-    const link = document.createElement("a");
-    link.download = "GreenMindAI-Appreciation.png";
-    link.href = canvas.toDataURL("image/png");
-    link.click();
-  }
-
   // handle request submit
   async function handleRequest(e) {
     e?.preventDefault();
-    if (!reqTitle.trim()) { toast.error("Please enter a title"); return; }
+    if (!reqTitle.trim()) {
+      toast.error("Please enter a title");
+      return;
+    }
     try {
       await axios.post(
         `${API_BASE}/api/request`,
@@ -103,7 +70,9 @@ export default function ReceiveSection({ setMe }) {
         { withCredentials: true }
       );
       toast.success("✅ Request submitted!");
-      setReqTitle(""); setReqDesc(""); setReqCategory("");
+      setReqTitle("");
+      setReqDesc("");
+      setReqCategory("");
     } catch (err) {
       console.error("Request submit failed", err);
       toast.error("Could not submit request");
@@ -112,7 +81,6 @@ export default function ReceiveSection({ setMe }) {
 
   if (loading) return <p>Loading…</p>;
 
-  // filter only when text typed (MOVE this *before* return to avoid 'filtered is not defined')
   const filtered = items.filter((item) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
@@ -124,112 +92,109 @@ export default function ReceiveSection({ setMe }) {
   });
 
   return (
-    <div style={{ position: "relative" , marginTop: "0px", marginLeft: "50px", marginRight: "50px"}}>
+    <div className="receive-container">
       <h2>📥 Receive Items</h2>
 
-      {/* Certificate overlay */}
-      {showCert && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.55)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            padding: 16,
-          }}
-        >
-          <div style={{ width: "min(680px, 95vw)" }}>
-            <div
-              ref={certRef}
-              style={{
-                position: "relative",
-                borderRadius: 24,
-                padding: 28,
-                background:
-                  "radial-gradient(1200px 600px at -10% -20%, #ecfccb, transparent 60%)," +
-                  "radial-gradient(900px 500px at 120% 120%, #cffafe, transparent 60%)," +
-                  "linear-gradient(135deg, #ffffff, #f8fafc)",
-                boxShadow: "0 20px 60px rgba(2,6,23,.25), inset 0 0 0 2px rgba(15,23,42,.07)",
-                overflow: "hidden",
-              }}
-            >
-              <div style={{ position: "absolute", inset: 10, borderRadius: 20, border: "2px dashed rgba(2,6,23,.15)", pointerEvents: "none" }} />
-
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 44, height: 44, borderRadius: "50%", background: "conic-gradient(from 0deg, #22c55e, #06b6d4, #8b5cf6, #22c55e)", filter: "saturate(1.1)", display: "grid", placeItems: "center", color: "white", fontWeight: 800, boxShadow: "0 10px 20px rgba(2,6,23,.25)" }}>
-                  🌿
-                </div>
-                <div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a" }}>{cert?.title || "Certificate of Appreciation"}</div>
-                  <div style={{ fontSize: 13, color: "#334155" }}>{cert?.subtitle || "For Supporting Smart Learning & Reuse"}</div>
-                </div>
-              </div>
-
-              <div style={{ marginTop: 18, fontSize: 15.5, lineHeight: 1.6, color: "#0f172a", whiteSpace: "pre-wrap" }}>{cert?.body}</div>
-
-              {Array.isArray(cert?.hashtags) && cert.hashtags.length > 0 && (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 16 }}>
-                  {cert.hashtags.map((t, i) => (
-                    <span key={i} style={{ fontSize: 12, padding: "6px 10px", borderRadius: 999, background: "#f1f5f9", color: "#334155", border: "1px solid #e2e8f0" }}>{t}</span>
-                  ))}
-                </div>
-              )}
-
-              <div style={{ marginTop: 22, paddingTop: 14, borderTop: "1px solid rgba(2,6,23,.06)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                <div style={{ fontSize: 12.5, color: "#334155" }}>Thank you for inspiring others to **share & receive**.</div>
-                <div style={{ display: "flex", gap: 10 }}>
-                  <button className="btn primary" onClick={downloadCertPNG}>⬇ Download PNG</button>
-                  <button className="btn ghost" onClick={() => setShowCert(false)}>Close</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Search */}
-      <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
-        <input type="text" placeholder="Search items…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ flex: 1, minWidth: 220, padding: 8, borderRadius: 6 }} />
-        <button className="btn" onClick={() => setSearch("")} style={{ backgroundColor: "Red", color: "White" }}>Clear</button>
+      {/* Search bar */}
+      <div className="search-bar">
+        <input
+          type="text"
+          placeholder="Search items…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <button className="btn clear" onClick={() => setSearch("")}>
+          Clear
+        </button>
       </div>
 
       {/* Items grid */}
-      <div className="cards-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
-        {filtered.map((item) => (
-          <div key={item.id} className="card glass">
+      <div className="cards-grid">
+        {filtered.map((item) => {
+          const mine = !!item.isMine;
+          return (
+            <div key={item.id} className="card glass horizontal-card">
+              {/* Image left (or top on mobile) */}
+              <div className="card-media-small">
+                <img
+                  src={item.imageUrl ? `${API_BASE}${item.imageUrl}` : PLACEHOLDER_SVG}
+                  alt={item.title || "Uploaded item"}
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = PLACEHOLDER_SVG;
+                  }}
+                />
+              </div>
+
+              {/* Text right */}
+              <div className="card-text">
+                <h3>{item.title || "Untitled"}</h3>
+                <p className="desc">{item.description}</p>
+                <p>
+                  <strong>Category:</strong> {item.category}
+                </p>
+                <p>
+                  <strong>Quality:</strong> {item.quality || "Good"}
+                </p>
+
           
 
-            <h3 className="receive-title" title={item.title} style={{ margin: "10px 0 6px" }}>{item.title || "Untitled"}</h3>
-
-            <p style={{ marginTop: 0 }}>{item.description}</p>
-            <p><strong>Category:</strong> {item.category}</p>
-            <p><strong>Quality:</strong> {item.quality || "Good"}</p>
-            <span className="badge">By {item.uploader_name}</span>
-
-            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-              <button className="btn primary" onClick={() => handleClaim(item)}>Claim</button>
+                <div className="actions">
+                  {!mine ? (
+                    <button className="btn primary" onClick={() => handleClaim(item)}>
+                      Claim
+                    </button>
+                  ) : (
+                    <button className="btn ghost" disabled>
+                      Your upload
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         {filtered.length === 0 && <p>No items match your search.</p>}
       </div>
 
-      {/* Request Item Section */}
-      <div className="request-form glass" style={{ marginTop: 30, padding: 20 }}>
+      {/* Request Section */}
+      <div className="request-form glass">
         <h3>🙋 Didn’t find what you need? Request an item</h3>
-        <form onSubmit={handleRequest} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <input type="text" placeholder="Item title" value={reqTitle} onChange={(e) => setReqTitle(e.target.value)} required style={{ padding: 8, borderRadius: 6 }} />
-          <textarea placeholder="Description" value={reqDesc} onChange={(e) => setReqDesc(e.target.value)} rows={3} style={{ padding: 8, borderRadius: 6 }} />
-          <input type="text" placeholder="Category" value={reqCategory} onChange={(e) => setReqCategory(e.target.value)} style={{ padding: 8, borderRadius: 6 }} />
-          <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn primary" type="submit">Submit Request</button>
-            <button className="btn" type="button" 
-            onClick={() => { setReqTitle(""); setReqDesc(""); setReqCategory(""); }}
-            style = {{backgroundColor:"Red", color: "#ffffff"}}
-            >Clear</button>
+        <form onSubmit={handleRequest}>
+          <input
+            type="text"
+            placeholder="Item title"
+            value={reqTitle}
+            onChange={(e) => setReqTitle(e.target.value)}
+            required
+          />
+          <textarea
+            placeholder="Description"
+            value={reqDesc}
+            onChange={(e) => setReqDesc(e.target.value)}
+            rows={3}
+          />
+          <input
+            type="text"
+            placeholder="Category"
+            value={reqCategory}
+            onChange={(e) => setReqCategory(e.target.value)}
+          />
+          <div className="form-actions">
+            <button className="btn primary" type="submit">
+              Submit Request
+            </button>
+            <button
+              className="btn clear"
+              type="button"
+              onClick={() => {
+                setReqTitle("");
+                setReqDesc("");
+                setReqCategory("");
+              }}
+            >
+              Clear
+            </button>
           </div>
         </form>
       </div>
