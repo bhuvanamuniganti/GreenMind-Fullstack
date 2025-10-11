@@ -2,9 +2,28 @@
 require("dotenv").config();
 console.log("Loaded API Key?", process.env.OPENAI_API_KEY ? "✅ Yes" : "❌ No");
 
+const fs = require("fs");
+const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
+
+// ---------- Defensive startup helpers ----------
+try {
+  // Ensure uploads directory exists (used for serving uploaded files)
+  const uploadsDir = path.join(__dirname, "uploads");
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+    console.log("Created uploads directory:", uploadsDir);
+  }
+} catch (err) {
+  console.warn("Could not create uploads directory:", err?.message || err);
+}
+
+// Log expected DB file path (useful when DB_FILE is provided via env on Render)
+const dbFileDebug = process.env.DB_FILE || path.join(__dirname, "data", "greenmind.db");
+console.log("DB file path (used by backend):", dbFileDebug);
+// ---------- End defensive helpers ----------
 
 // IMPORTS (must appear before usage)
 const initDb = require("./init");             // ensure tables/columns exist
@@ -14,15 +33,13 @@ const uploadRoutes = require("./routes/upload");
 const receiveRoutes = require("./routes/receive");
 const aiTutorRoutes = require("./routes/aiTutor");
 const aiLearningRoutes = require("./routes/aiLearningRoutes");
-const practiceImageRoutes = require("./routes/practiceImage"); // 👈 import here
+const practiceImageRoutes = require("./routes/practiceImage");
 const requestRoutes = require("./routes/request");
 
 // 1) Create app first
 const app = express();
 
 const isDev = process.env.NODE_ENV !== "production";
-
-
 
 // CORS: allow localhost in dev and CLIENT_ORIGIN in prod
 // DEV-friendly CORS: explicitly allow localhost/127.0.0.1 ports + the configured CLIENT_ORIGIN in prod
@@ -48,7 +65,6 @@ if (!isDev && process.env.CLIENT_ORIGIN) {
   }
 }
 
-
 app.use(cors({
   origin: (origin, callback) => {
     // allow requests with no origin (curl, mobile apps, Postman)
@@ -63,7 +79,6 @@ app.use(cors({
   },
   credentials: true,
 }));
-
 
 app.use(express.json());
 app.use(cookieParser());
@@ -88,14 +103,13 @@ app.use("/api", uploadRoutes);
 app.use("/api", receiveRoutes);
 app.use("/api/ai-tutor", aiTutorRoutes);
 app.use("/api/learning", aiLearningRoutes);
-app.use("/api", practiceImageRoutes); // 👈 now mounted in correct place
+app.use("/api", practiceImageRoutes);
 app.use("/api", requestRoutes);
 
 // 5) Start server
 const PORT = parseInt(process.env.PORT, 10) || 4000;
 // In dev prefer explicit localhost (helps Windows loopback/IPv6 issues), otherwise bind to 0.0.0.0
 const bindHost = isDev ? '127.0.0.1' : '0.0.0.0';
-
 
 const server = app.listen(PORT, bindHost, function () {
   const a = server.address();
