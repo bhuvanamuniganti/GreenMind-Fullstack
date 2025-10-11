@@ -137,7 +137,8 @@ export default function ReceiveSection({ setMe }) {
                   <strong>Quality:</strong> {item.quality || "Good"}
                 </p>
 
-          
+                {/* Single label: either "Your upload" or the uploader name */}
+                <span className="badge">{mine ? "Your upload" : `By ${item.uploader_name}`}</span>
 
                 <div className="actions">
                   {!mine ? (
