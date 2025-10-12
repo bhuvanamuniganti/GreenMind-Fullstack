@@ -244,50 +244,105 @@ router.post("/tts", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// === AI-Powered Book Recommendations with OpenLibrary cover lookup ===
 router.post("/recommend-books", async (req, res) => {
   try {
     const { text = "", maxResults = 6 } = req.body;
     if (!text || !text.trim()) return res.json({ result: [] });
 
-    // sanitize and limit
-    const q = encodeURIComponent(text.trim().slice(0, 300));
-    const max = Math.min(Number(maxResults) || 6, 20);
+    console.log(">>> AI Book Recommendation - starting");
 
-    // Google Books simple endpoint (no API key required for basic usage)
-    const url = `https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=${max}`;
+    // Build prompt for OpenAI
+    const prompt = `
+You are an educational book recommender for parents and learners.
+Based on the following text, suggest up to ${maxResults} relevant books.
+For each book return JSON with: title, authors (array), description (short), reason (1 line).
+Return STRICT JSON array only.
 
-    const r = await fetch(url);
-    if (!r.ok) {
-      console.error("Google Books fetch failed", await r.text());
-      return res.status(500).json({ result: [] });
-    }
-    const j = await r.json();
-    const items = Array.isArray(j.items) ? j.items.slice(0, max) : [];
+Text:
+"""${text.slice(0, 1000)}"""
+    `;
 
-    const books = items.map((it) => {
-      const info = it.volumeInfo || {};
-      return {
-        title: info.title || "Untitled",
-        authors: info.authors || [],
-        publisher: info.publisher || "",
-        publishedDate: info.publishedDate || "",
-        description: info.description ? info.description.replace(/(<([^>]+)>)/gi, "").slice(0, 350) : "",
-        thumbnail:
-          (info.imageLinks && (info.imageLinks.thumbnail || info.imageLinks.smallThumbnail)) ||
-          null,
-        infoLink: info.infoLink || null,
-        identifiers: info.industryIdentifiers || [],
-        categories: info.categories || [],
-        pageCount: info.pageCount || null,
-      };
+    const completion = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "You are a helpful book recommendation assistant." },
+        { role: "user", content: prompt },
+      ],
+      temperature: 0.7,
     });
 
-    res.json({ result: books });
+    let raw = completion.choices?.[0]?.message?.content || "[]";
+    let booksArr = [];
+
+    // Try to parse JSON from the model output
+    try {
+      booksArr = JSON.parse(raw);
+    } catch (err) {
+      console.warn("AI output not strict JSON. Attempting to extract JSON array...");
+      const match = raw.match(/\[[\s\S]*\]/);
+      if (match) {
+        try {
+          booksArr = JSON.parse(match[0]);
+        } catch (e) {
+          console.error("Failed to parse extracted JSON:", e);
+          booksArr = [];
+        }
+      } else {
+        booksArr = [];
+      }
+    }
+
+    if (!Array.isArray(booksArr)) booksArr = [];
+
+    // Normalize shape
+    const normalized = booksArr.slice(0, Math.min(Number(maxResults) || 6, 20)).map((b) => ({
+      title: (b.title || "").trim(),
+      authors: Array.isArray(b.authors) ? b.authors : (b.authors ? [b.authors] : []),
+      description: b.description || b.reason || "",
+      reason: b.reason || "",
+      thumbnail: null, // will attempt to fill below
+      infoLink: b.infoLink || null,
+    }));
+
+    // Helper: try OpenLibrary to find a cover id by title+author
+    const findOpenLibraryCover = async (title, authors = []) => {
+      try {
+        const q = encodeURIComponent(`${title} ${authors.join(" ")}`.trim());
+        const url = `https://openlibrary.org/search.json?q=${q}&limit=1`;
+        const r = await fetch(url);
+        if (!r.ok) return null;
+        const j = await r.json();
+        if (Array.isArray(j.docs) && j.docs.length > 0 && j.docs[0].cover_i) {
+          return `https://covers.openlibrary.org/b/id/${j.docs[0].cover_i}-M.jpg`;
+        }
+        return null;
+      } catch (err) {
+        console.warn("OpenLibrary cover lookup error:", err);
+        return null;
+      }
+    };
+
+    // For each normalized book, try to get a thumbnail from OpenLibrary in parallel
+    const withCovers = await Promise.all(
+      normalized.map(async (bk) => {
+        if (!bk.title) return { ...bk, thumbnail: null };
+        const cover = await findOpenLibraryCover(bk.title, bk.authors || []);
+        return { ...bk, thumbnail: cover || null };
+      })
+    );
+
+    // Final result: keep thumbnail null if not found (frontend will use placeholder)
+    console.log(`>>> /recommend-books returning ${withCovers.length} items (covers attempted)`);
+    res.json({ result: withCovers });
   } catch (err) {
     console.error("recommend-books error:", err);
-    res.status(500).json({ error: "Failed to fetch book suggestions" });
+    res.status(500).json({ error: "Failed to generate book suggestions" });
   }
 });
+
+
+
 
 
 // === Flashcards Quiz Mode ===
