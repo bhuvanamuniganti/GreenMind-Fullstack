@@ -1,4 +1,3 @@
-// backend/server.js
 require("dotenv").config();
 console.log("Loaded API Key?", process.env.OPENAI_API_KEY ? "✅ Yes" : "❌ No");
 
@@ -10,7 +9,6 @@ const cookieParser = require("cookie-parser");
 
 // ---------- Defensive startup helpers ----------
 try {
-  // Ensure uploads directory exists (used for serving uploaded files)
   const uploadsDir = path.join(__dirname, "uploads");
   if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
@@ -23,12 +21,11 @@ try {
 // Log expected DB file path (useful when DB_FILE is provided via env on Render)
 const dbFileDebug = process.env.DB_FILE || path.join(__dirname, "data", "greenmind.db");
 console.log("DB file path (used by backend):", dbFileDebug);
-// ---------- End defensive helpers ----------
 
 // IMPORTS (must appear before usage)
 const initDb = require("./init");             // ensure tables/columns exist
 const authRoutes = require("./routes/auth");
-const appRoutes  = require("./routes/app");   // renamed from appe.js -> app.js
+const appRoutes  = require("./routes/app");
 const uploadRoutes = require("./routes/upload");
 const receiveRoutes = require("./routes/receive");
 const aiTutorRoutes = require("./routes/aiTutor");
@@ -41,9 +38,7 @@ const app = express();
 
 const isDev = process.env.NODE_ENV !== "production";
 
-// CORS: allow localhost in dev and CLIENT_ORIGIN in prod
-// DEV-friendly CORS: explicitly allow localhost/127.0.0.1 ports + the configured CLIENT_ORIGIN in prod
-// Also log incoming origin for debugging.
+// Log incoming origin header for debugging
 app.use((req, res, next) => {
   console.log("Incoming request Origin header:", req.headers.origin);
   next();
@@ -55,11 +50,10 @@ const allowedOrigins = [
   "http://127.0.0.1:3000",
   "http://localhost:5173",
   "http://127.0.0.1:5173",
-  "https://greenmindaifullstack.netlify.app" // <--- add Netlify origin
+  "https://greenmindaifullstack.netlify.app" // Netlify frontend origin
 ];
 
 if (!isDev && process.env.CLIENT_ORIGIN) {
-  // keep any existing CLIENT_ORIGIN too (optional)
   if (!allowedOrigins.includes(process.env.CLIENT_ORIGIN)) {
     allowedOrigins.push(process.env.CLIENT_ORIGIN);
   }
@@ -67,7 +61,7 @@ if (!isDev && process.env.CLIENT_ORIGIN) {
 
 app.use(cors({
   origin: (origin, callback) => {
-    // allow requests with no origin (curl, mobile apps, Postman)
+    // allow requests with no origin (curl, Postman)
     if (!origin) return callback(null, true);
 
     if (allowedOrigins.includes(origin)) {
@@ -83,13 +77,16 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-// cookie options helper
+// cookie options helper (used by routes via req.app.get('cookieOptions'))
 const cookieOptions = {
   httpOnly: true,
-  sameSite: isDev ? "lax" : "none", // none required for cross-site cookies
-  secure: !isDev,                   // secure true in production
+  sameSite: isDev ? "lax" : "none", // 'none' needed for cross-site cookie in production
+  secure: !isDev,                   // secure required for sameSite:'none' in browsers
   maxAge: 7 * 24 * 60 * 60 * 1000,  // 7 days
 };
+
+// expose cookieOptions to routes (so they can use same settings)
+app.set("cookieOptions", cookieOptions);
 
 // 3) Init DB after middleware
 initDb();
@@ -108,7 +105,6 @@ app.use("/api", requestRoutes);
 
 // 5) Start server
 const PORT = parseInt(process.env.PORT, 10) || 4000;
-// In dev prefer explicit localhost (helps Windows loopback/IPv6 issues), otherwise bind to 0.0.0.0
 const bindHost = isDev ? '127.0.0.1' : '0.0.0.0';
 
 const server = app.listen(PORT, bindHost, function () {

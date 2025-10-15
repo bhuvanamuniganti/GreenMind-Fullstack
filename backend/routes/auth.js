@@ -1,4 +1,3 @@
-// backend/routes/auth.js
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -31,7 +30,16 @@ router.post("/register", async (req, res) => {
     const user = db.prepare("SELECT id, email, full_name FROM users WHERE email = ?").get(email);
 
     const token = jwt.sign({ sub: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: "7d" });
-    res.cookie("token", token, { httpOnly: true, sameSite: "lax" });
+
+    // use cookie options exposed by server.js (fallback safe defaults)
+    const cookieOptions = req.app.get("cookieOptions") || {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: false,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    };
+
+    res.cookie("token", token, cookieOptions);
     res.status(201).json({ ...user, token });
   } catch (e) {
     console.error("Register error:", e);
@@ -40,12 +48,10 @@ router.post("/register", async (req, res) => {
 });
 
 // ---------------- Login ----------------
-// ---------------- Login ----------------
 router.post("/login", async (req, res) => {
   try {
     console.log("➡️ /api/auth/login body:", req.body);
 
-    // Attempt to parse (and catch schema errors)
     let parsed;
     try {
       parsed = loginSchema.parse(req.body);
@@ -79,12 +85,15 @@ router.post("/login", async (req, res) => {
     }
 
     const token = jwt.sign({ sub: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: "7d" });
-    const cookieOptions = {
+
+    // read cookie options from app (set in server.js)
+    const cookieOptions = req.app.get("cookieOptions") || {
       httpOnly: true,
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       secure: process.env.NODE_ENV === 'production',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     };
+
     res.cookie("token", token, cookieOptions);
 
     console.log("Login success for user id:", user.id);
@@ -95,10 +104,19 @@ router.post("/login", async (req, res) => {
   }
 });
 
-
 // ---------------- Logout ----------------
 router.post("/logout", (req, res) => {
-  res.clearCookie("token", { sameSite: cookieOptions.sameSite, secure: cookieOptions.secure });
+  try {
+    const cookieOptions = req.app.get("cookieOptions") || {};
+    // clear cookie using same name and cookie attributes
+    res.clearCookie("token", {
+      httpOnly: cookieOptions.httpOnly ?? true,
+      sameSite: cookieOptions.sameSite ?? "lax",
+      secure: cookieOptions.secure ?? false,
+    });
+  } catch (err) {
+    console.warn("Logout clearCookie error (ignored):", err?.message || err);
+  }
   res.json({ ok: true });
 });
 
