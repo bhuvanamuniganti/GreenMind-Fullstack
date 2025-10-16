@@ -4,6 +4,8 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import "./ReceiveSection.css";
 
+
+
 const PLACEHOLDER_SVG =
   'data:image/svg+xml;utf8,' +
   encodeURIComponent(
@@ -117,7 +119,7 @@ export default function ReceiveSection({ setMe }) {
               {/* Image left (or top on mobile) */}
               <div className="card-media-small">
                 <img
-                  src={item.imageUrl ? `${API_BASE}${item.imageUrl}` : PLACEHOLDER_SVG}
+                  src={item.imageUrl ? `${API_BASE}${item.imageUrl}` : ""}
                   alt={item.title || "Uploaded item"}
                   onError={(e) => {
                     e.currentTarget.onerror = null;
