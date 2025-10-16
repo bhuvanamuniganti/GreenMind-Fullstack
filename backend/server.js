@@ -105,7 +105,8 @@ app.use("/api", requestRoutes);
 
 // 5) Start server
 const PORT = parseInt(process.env.PORT, 10) || 4000;
-const bindHost = isDev ? '127.0.0.1' : '0.0.0.0';
+const bindHost = '0.0.0.0';
+
 
 const server = app.listen(PORT, bindHost, function () {
   const a = server.address();
