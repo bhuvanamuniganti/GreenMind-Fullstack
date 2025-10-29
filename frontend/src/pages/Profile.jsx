@@ -9,7 +9,6 @@ import AiLearningStudio from "../sections/AiLearningStudio";
 import TranslatorSection from "../sections/TranslatorSection";
 import FlashCardSection from "../sections/FlashCardSection";
 import MathTutorSection from "../sections/MathTutorSection";
-import AskAnythingSection from "../sections/AskAnythingSection";
 import PracticeFromImageSection from "../sections/PracticeFromImageSection";
 import ParentTalkPractice from "../sections/OralPracticeFromPhotoSection";
 
@@ -64,12 +63,10 @@ export default function Profile() {
     { id: "translator", title: "Book2Voice", icon: "🔊" },
     { id: "Practice from Image", title: "Parent's Helper", icon: "📷" },
     { id: "Math Tutor", title: "Math Tutor", icon: "➗" },
-    { id: "Ask Anything", title: "Ask Anything", icon: "❓" },
+  
     { id: "Flashcards", title: "Flashcards & Quizzes", icon: "🎴" },
     { id: "Smart AI Learning", title: "Smart AI Learning", icon: "🤖" },
-    { id: "ParentTalk", title: "ParentTalk Practice", icon: "👩‍👦" },
-    { id: "Smart Contribution", title: "Smart Contribution", icon: "♻️" },
-    { id: "Receive", title: "Knowledge Exchange", icon: "📥" },
+    
   ];
 
   function handleSignOut() {
@@ -139,7 +136,6 @@ export default function Profile() {
         {s === "translator" && <TranslatorSection />}
         {s === "Flashcards" && <FlashCardSection />}
         {s === "Math Tutor" && <MathTutorSection />}
-        {s === "Ask Anything" && <AskAnythingSection />}
         {s === "Practice from Image" && <PracticeFromImageSection />}
         {s === "ParentTalk" && <ParentTalkPractice />}
         {s === "Smart AI Learning" && <AiLearningStudio />}
