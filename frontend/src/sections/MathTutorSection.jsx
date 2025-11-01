@@ -24,8 +24,16 @@ export default function MathTutorSection() {
   const [altLoading, setAltLoading] = useState(false);
 
   const [similar, setSimilar] = useState("");
-  const [analyzing, setAnalyzing] = useState(false);
 
+  // camera modal states
+  const [showCamera, setShowCamera] = useState(false);
+  const [cameraTarget, setCameraTarget] = useState(null); // 'problem' or 'pattern'
+  const cameraFacingRef = useRef("user"); // useRef instead of unused state
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const canvasRef = useRef(null);
+
+  // file refs
   const fileInputRef = useRef(null);
   const patternFileRef = useRef(null);
   const mountedRef = useRef(true);
@@ -36,8 +44,82 @@ export default function MathTutorSection() {
       mountedRef.current = false;
       if (preview) URL.revokeObjectURL(preview);
       if (teacherPatternPreview) URL.revokeObjectURL(teacherPatternPreview);
+      stopCameraStream();
     };
   }, [preview, teacherPatternPreview]);
+
+  const startCamera = async (facing = "user") => {
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error("Camera not supported");
+      const constraints = { video: { facingMode: facing } };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = stream;
+      if (videoRef.current) videoRef.current.srcObject = stream;
+      cameraFacingRef.current = facing;
+    } catch (err) {
+      console.error("Camera start error:", err);
+      alert("⚠️ Unable to access camera: " + (err.message || err));
+      setShowCamera(false);
+    }
+  };
+
+  const stopCameraStream = () => {
+    try {
+      const s = streamRef.current;
+      if (s) {
+        s.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
+      if (videoRef.current) videoRef.current.srcObject = null;
+    } catch (err) {
+      console.warn("Error stopping camera:", err);
+    }
+  };
+
+  const openCameraModal = async (target = "problem", facing = "user") => {
+    setCameraTarget(target);
+    setShowCamera(true);
+    // wait for modal to render, then start
+    setTimeout(() => startCamera(facing), 50);
+  };
+
+  const closeCameraModal = () => {
+    setShowCamera(false);
+    stopCameraStream();
+  };
+
+  const captureFromCamera = async () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current || document.createElement("canvas");
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          alert("⚠️ Capture failed");
+          resolve(null);
+          return;
+        }
+        const fileName = `${cameraTarget || "capture"}_${Date.now()}.jpg`;
+        const file = new File([blob], fileName, { type: blob.type });
+        if (cameraTarget === "problem") {
+          if (preview) URL.revokeObjectURL(preview);
+          setProblemFile(file);
+          const url = URL.createObjectURL(file);
+          setPreview(url);
+        } else if (cameraTarget === "pattern") {
+          if (teacherPatternPreview) URL.revokeObjectURL(teacherPatternPreview);
+          setTeacherPatternFile(file);
+          const url = URL.createObjectURL(file);
+          setTeacherPatternPreview(url);
+        }
+        resolve(file);
+      }, "image/jpeg", 0.92);
+    });
+  };
 
   // Reusable button (keeps animation)
   function AnimatedButton({ onClick, children, className = "", disabled = false, style = {} }) {
@@ -72,76 +154,102 @@ export default function MathTutorSection() {
     doc.save(`${title}.pdf`);
   };
 
-  // === Problem OCR analyze (uses new math-only route) ===
-  const analyzeProblemImage = async () => {
-    if (!problemFile) return;
-    setAnalyzing(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", problemFile);
-      const res = await fetch(`${API_BASE}/api/learning/analyze-math`, {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      if (!mountedRef.current) return;
-      setText(data.result || "");
-    } catch (err) {
-      console.error("❌ Analyze error:", err);
-      setText((prev) => prev || `⚠️ Analyze failed: ${err?.message || "Unknown error"}`);
-    } finally {
-      setAnalyzing(false);
-    }
-  };
-
-  // === Quick Solve (placed beside upload/analyze) - alternative-mode quick answer
+  // === Quick Solve (image OCR then math-tutor) ===
   const handleQuickSolve = async () => {
-    if (!text.trim()) {
-      alert("⚠️ Please enter or upload a math problem first.");
+    if (!text.trim() && !problemFile) {
+      alert("⚠️ Please enter a math problem or upload an image first.");
       return;
     }
+
     setQuickLoading(true);
     setQuickSolution("");
+
     try {
+      let problemText = text?.trim();
+
+      if (problemFile && !problemText) {
+        const fd = new FormData();
+        fd.append("file", problemFile);
+
+        const r = await fetch(`${API_BASE}/api/learning/analyze-math`, {
+          method: "POST",
+          body: fd,
+        });
+
+        if (!r.ok) {
+          const errTxt = await r.text().catch(() => "");
+          throw new Error(`OCR failed: ${r.status} ${errTxt}`);
+        }
+
+        const ocrData = await r.json().catch(() => ({}));
+        problemText = (ocrData && ocrData.result) ? ocrData.result.trim() : "";
+
+        if (!problemText) {
+          setQuickSolution("⚠️ OCR did not extract any problem text from the image.");
+          return;
+        }
+
+        setText(problemText);
+      }
+
+      const tutorReq = {
+        text: problemText,
+        mode: "alternative",
+        ...(teacherPatternText ? { teacherPattern: teacherPatternText } : {}),
+      };
+
       const res = await fetch(`${API_BASE}/api/learning/math-tutor`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, mode: "alternative" }),
+        body: JSON.stringify(tutorReq),
       });
-      const data = await res.json();
+
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => "");
+        throw new Error(`Server returned ${res.status}: ${errBody}`);
+      }
+
+      const data = await res.json().catch(() => ({}));
       setQuickSolution(data.result || "⚠️ No quick solution generated.");
-      // Scroll to quick result on small screens
       setTimeout(() => {
         const el = document.getElementById("quick-solution-anchor");
         if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 150);
     } catch (err) {
       console.error("❌ Quick solve failed:", err);
-      setQuickSolution("⚠️ Error generating quick solution.");
+      setQuickSolution(`⚠️ Error generating quick solution: ${err?.message || err}`);
     } finally {
       setQuickLoading(false);
     }
   };
 
-  // === Teacher-pattern OCR (reload) - extracts pattern text from uploaded image ===
+  // === Teacher-pattern OCR (extract text from uploaded pattern image) ===
   const analyzeTeacherPatternImage = async () => {
-    if (!teacherPatternFile) return;
-    setAnalyzing(true);
+    if (!teacherPatternFile) return "";
     try {
       const formData = new FormData();
       formData.append("file", teacherPatternFile);
       const res = await fetch(`${API_BASE}/api/learning/analyze-math`, { method: "POST", body: formData });
-      const data = await res.json();
-      if (!mountedRef.current) return;
-      if (data.result) setTeacherPatternText((prev) => (prev ? `${prev}\n${data.result}`.trim() : data.result));
+
+      if (!res.ok) {
+        const err = await res.text().catch(() => "");
+        console.warn("Pattern OCR returned non-ok:", res.status, err);
+        return "";
+      }
+
+      const data = await res.json().catch(() => ({}));
+      const extracted = (data && data.result) ? String(data.result).trim() : "";
+      if (extracted) {
+        setTeacherPatternText((prev) => (prev ? `${prev}\n${extracted}`.trim() : extracted));
+      }
+      return extracted;
     } catch (err) {
       console.error("❌ Pattern OCR failed:", err);
-    } finally {
-      setAnalyzing(false);
+      return "";
     }
   };
 
-  // === Solve Teacher method (separate) ===
+  // === Solve Teacher method (send pattern image if available + text) ===
   const handleSolveTeacher = async () => {
     if (!text.trim()) { alert("Enter or upload a math problem first."); return; }
     if (!teacherPatternText.trim() && !teacherPatternFile) { alert("Provide teacher pattern text or image."); return; }
@@ -149,33 +257,57 @@ export default function MathTutorSection() {
     setTeacherLoading(true);
     setTeacherSolution("");
     try {
+      // If a pattern image exists but no pattern text, OCR it first and update textarea
+      if (teacherPatternFile && !teacherPatternText.trim()) {
+        const extracted = await analyzeTeacherPatternImage();
+        if (!extracted) {
+          setTeacherSolution("⚠️ Could not extract teacher pattern text from the uploaded image. Please paste the pattern text or upload a clearer image.");
+          setTeacherLoading(false);
+          return;
+        }
+      }
+
+      // If a pattern image exists, send multipart/form-data with file + text
       if (teacherPatternFile) {
         const formData = new FormData();
-        formData.append("text", text);
-        formData.append("mode", "teacher");
         formData.append("file", teacherPatternFile);
-        if (teacherPatternText) formData.append("teacherPattern", teacherPatternText);
+        formData.append("text", text.trim());
+        formData.append("mode", "teacher");
+        if (teacherPatternText.trim()) formData.append("teacherPattern", teacherPatternText.trim());
+
         const res = await fetch(`${API_BASE}/api/learning/math-tutor`, { method: "POST", body: formData });
-        const data = await res.json();
+
+        if (!res.ok) {
+          const errBody = await res.text().catch(() => "");
+          throw new Error(`Server returned ${res.status}: ${errBody}`);
+        }
+        const data = await res.json().catch(() => ({}));
         setTeacherSolution(data.result || "⚠️ No solution generated (teacher).");
       } else {
+        // only text path
         const res = await fetch(`${API_BASE}/api/learning/math-tutor`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text, mode: "teacher", teacherPattern: teacherPatternText }),
+          body: JSON.stringify({ text: text.trim(), mode: "teacher", teacherPattern: teacherPatternText.trim() }),
         });
-        const data = await res.json();
+        if (!res.ok) {
+          const errBody = await res.text().catch(() => "");
+          throw new Error(`Server returned ${res.status}: ${errBody}`);
+        }
+        const data = await res.json().catch(() => ({}));
         setTeacherSolution(data.result || "⚠️ No solution generated (teacher).");
       }
+
       setTimeout(() => {
         const el = document.getElementById("teacher-solution-anchor");
         if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 150);
     } catch (err) {
       console.error("❌ Teacher solve failed:", err);
-      setTeacherSolution("⚠️ Error solving the problem (teacher).");
+      setTeacherSolution(`⚠️ Error solving the problem (teacher): ${err?.message || err}`);
+    } finally {
+      setTeacherLoading(false);
     }
-    setTeacherLoading(false);
   };
 
   // === Solve Alternative method (separate) ===
@@ -203,6 +335,26 @@ export default function MathTutorSection() {
     setAltLoading(false);
   };
 
+  // Helper to sanitize similar problems: remove trailing solution/answer blocks
+  const sanitizeSimilarText = (raw) => {
+    if (!raw) return "";
+    const blocks = raw.split(/\n\s*\n/).map(b => b.trim()).filter(Boolean);
+    const cleaned = blocks.map((blk) => {
+      const cutAt = blk.search(/\b(Solution|Answer|Ans|Explanation|Solution:|Answer:)\b/i);
+      if (cutAt >= 0) return blk.slice(0, cutAt).trim();
+      const lines = blk.split("\n");
+      const filtered = [];
+      for (const line of lines) {
+        if (/^\s*(Solution|Answer|Ans|Explanation)\b/i.test(line)) break;
+        filtered.push(line);
+      }
+      const candidate = filtered.join("\n").trim();
+      if (!candidate) return blk.split("\n")[0].trim();
+      return candidate;
+    }).map(s => s.trim()).filter(Boolean);
+    return cleaned.join("\n\n");
+  };
+
   // Similar Questions
   const handleSimilar = async () => {
     if (!text.trim()) { alert("Enter or upload a math problem first."); return; }
@@ -213,7 +365,9 @@ export default function MathTutorSection() {
         body: JSON.stringify({ text }),
       });
       const data = await res.json();
-      setSimilar(data.result || "");
+      const raw = data.result || "";
+      const cleaned = sanitizeSimilarText(raw);
+      setSimilar(cleaned);
     } catch (err) {
       console.error("❌ Math similar fetch failed:", err);
       setSimilar("⚠️ Error generating similar questions.");
@@ -227,8 +381,9 @@ export default function MathTutorSection() {
     setQuickSolution(""); setTeacherSolution(""); setAltSolution(""); setSimilar("");
   };
 
+  // file change handlers (single file only)
   const handleProblemFileChange = (e) => {
-    const f = e.target.files?.[0];
+    const f = e?.target?.files?.[0];
     if (!f) return;
     if (preview) URL.revokeObjectURL(preview);
     setProblemFile(f);
@@ -241,15 +396,14 @@ export default function MathTutorSection() {
       URL.revokeObjectURL(preview);
       setPreview(null);
     }
-    // also clear any text extracted earlier? (optional)
-    // setText("");
   };
 
   const handlePatternFileChange = (e) => {
-    const f = e.target.files?.[0];
-    setTeacherPatternFile(f || null);
+    const f = e?.target?.files?.[0];
+    if (!f) return;
+    setTeacherPatternFile(f);
     if (teacherPatternPreview) URL.revokeObjectURL(teacherPatternPreview);
-    if (f) setTeacherPatternPreview(URL.createObjectURL(f));
+    setTeacherPatternPreview(URL.createObjectURL(f));
   };
 
   const removeTeacherPatternFile = () => {
@@ -257,18 +411,16 @@ export default function MathTutorSection() {
     if (teacherPatternPreview) { URL.revokeObjectURL(teacherPatternPreview); setTeacherPatternPreview(null); }
   };
 
-  const canAnalyze = !!problemFile && !analyzing;
-
   // styles for distinctive buttons (can adjust hexs to taste)
   const styles = {
-    upload: { background: "#2E8B57", color: "#fff" },        // sea green
-    analyze: { background: "#20B2AA", color: "#fff" },       // light sea green / teal
-    solve: { background: "#6a5acd", color: "#fff" },         // slate blue / purple
-    clear: { background: "#e74c3c", color: "#fff" },         // red
-    teacher: { background: "#1e90ff", color: "#fff" },       // dodger blue
-    alternative: { background: "#ff8c42", color: "#fff" },   // orange
-    similarBtn: { background: "#16a085", color: "#fff" },    // green-teal
-    download: { background: "#2e7d32", color: "#fff" },      // darker green
+    upload: { background: "#2E8B57", color: "#fff" },
+    analyze: { background: "#20B2AA", color: "#fff" },
+    solve: { background: "#6a5acd", color: "#fff" },
+    clear: { background: "#e74c3c", color: "#fff" },
+    teacher: { background: "#1e90ff", color: "#fff" },
+    alternative: { background: "#ff8c42", color: "#fff" },
+    similarBtn: { background: "#16a085", color: "#fff" },
+    download: { background: "#2e7d32", color: "#fff" },
   };
 
   return (
@@ -285,11 +437,24 @@ export default function MathTutorSection() {
         .ai-output { margin-top:16px; }
         .scroll-box { max-height:320px; overflow:auto; background:#fff; border-radius:8px; padding:12px; border:1px solid #eee; }
         .thumb-wrap { display:flex; gap:12px; align-items:flex-start; margin-top:8px; }
-        .thumb-img { width:140px; height:100px; object-fit:cover; border-radius:6px; border:1px solid #ddd; }
+        .thumb-img { width:140px; height:100px; object-fit:cover; border-radius:6px; border:1px solid #ddd; cursor:pointer; }
+        /* Camera inputs: show back camera on large screens, front camera on smaller */
+        .camera-back-label, .camera-front-label { display:inline-flex; align-items:center; gap:8px; }
+        .camera-front-label { display:none; }
+        @media (max-width:1024px) {
+          .camera-front-label{ display:inline-flex; }
+          .camera-back-label{ display:none; }
+        }
         @media (max-width:720px) {
           .right-area { width:100%; justify-content:flex-start; }
           .left-area { flex-basis: 100%; }
         }
+        /* Camera modal styles */
+        .camera-modal { position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:9999; }
+        .camera-box { background:#fff; padding:12px; border-radius:10px; max-width:920px; width:100%; max-height:90vh; display:flex; flex-direction:column; gap:8px; }
+        .camera-stage { flex:1; display:flex; align-items:center; justify-content:center; background:#000; border-radius:8px; overflow:hidden; }
+        .camera-stage video { width:100%; height:100%; object-fit:cover; }
+        .camera-controls { display:flex; gap:8px; justify-content:center; }
       `}</style>
 
       <h2 className="translator-title" style={{ marginBottom: 12 }}>📐 Math Tutor</h2>
@@ -305,17 +470,36 @@ export default function MathTutorSection() {
         />
       </div>
 
-      {/* Row: Upload | Analyze | Solve | Clear  (Solve placed beside Upload+Analyze) */}
+      {/* Row: Upload | Camera (back/front) | Solve | Clear  (Solve placed beside Upload+Camera) */}
       <div className="top-controls" style={{ marginBottom: 12 }}>
         <div className="file-column left-area">
-          <label style={{ display: "inline-flex", alignItems: "center", gap: 8 }} className="translator-btn" title="Upload problem image">
-            <input type="file" accept="image/*" style={{ display: "none" }} onChange={handleProblemFileChange} ref={fileInputRef} />
-            <span style={{ display: "inline-block", padding: "6px 8px", borderRadius: 6, ...styles.upload }}>📂 Upload Image</span>
-          </label>
 
-          <AnimatedButton onClick={analyzeProblemImage} className="translator-btn" disabled={!canAnalyze} style={{ ...styles.analyze }}>
-            {analyzing ? "Analyzing..." : "📸 Analyze"}
-          </AnimatedButton>
+          {/* Hidden input for problem upload */}
+          <input
+            id="problem-upload"
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={handleProblemFileChange}
+            ref={fileInputRef}
+          />
+
+          {/* Visible upload control (button that triggers the hidden input) */}
+          <button
+            type="button"
+            className="translator-btn"
+            title="Upload problem image"
+            onClick={() => { try { fileInputRef.current && fileInputRef.current.click(); } catch (err) {} }}
+            style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}
+          >
+            <span style={{ display: "inline-block", padding: "6px 8px", borderRadius: 6, ...styles.upload }}>
+              📂 Upload Image
+            </span>
+          </button>
+
+          {/* Camera controls now open in-app modal with live preview */}
+          <button className="translator-btn camera-back-label" style={{ padding: "6px 8px", background: "#1976d2", color: "#fff" }} onClick={() => openCameraModal('problem', 'environment')}>📷 Camera</button>
+          <button className="translator-btn camera-front-label" style={{ padding: "6px 8px", background: "#1976d2", color: "#fff" }} onClick={() => openCameraModal('problem', 'user')}>📷 Camera (Front)</button>
 
           <AnimatedButton onClick={handleQuickSolve} className="translator-btn" disabled={quickLoading} style={{ ...styles.solve }}>
             {quickLoading ? "Solving..." : "⚡ Quick Solve"}
@@ -325,25 +509,45 @@ export default function MathTutorSection() {
             ❌ Clear
           </AnimatedButton>
 
-          {/* Problem image thumbnail + controls (left-down of input area) */}
+          {/* Problem image thumbnail + controls */}
           {preview && (
             <div className="thumb-wrap" style={{ marginTop: 6 }}>
-              <img src={preview} alt="problem preview" className="thumb-img" />
+              <img src={preview} alt="problem preview" className="thumb-img" onClick={() => preview && window.open(preview)} />
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button onClick={removeProblemFile} className="translator-btn" style={{ ...styles.clear, padding: "6px 8px" }}>Close</button>
-                  <button onClick={analyzeProblemImage} className="translator-btn" style={{ ...styles.analyze, padding: "6px 8px" }}>{analyzing ? "OCR…" : "Reload (OCR)"}</button>
+                  <button onClick={() => preview && window.open(preview)} className="translator-btn" style={{ ...styles.upload, padding: "6px 8px" }}>Open</button>
                 </div>
-                <small style={{ color: "#666" }}>Uploaded problem image</small>
+                <small style={{ color: "#666" }}>Uploaded problem image (click to view)</small>
               </div>
             </div>
           )}
         </div>
-
-       
       </div>
 
-      {/* Quick Solution area - appears immediately below input and above teacher pattern */}
+      {/* Camera modal */}
+      {showCamera && (
+        <div className="camera-modal">
+          <div className="camera-box">
+            <div className="camera-stage">
+              <video ref={videoRef} autoPlay playsInline muted />
+            </div>
+            <div className="camera-controls">
+              <button className="translator-btn" onClick={() => {
+                const next = cameraFacingRef.current === 'user' ? 'environment' : 'user';
+                stopCameraStream();
+                startCamera(next);
+                cameraFacingRef.current = next;
+              }}>🔄 Switch</button>
+              <button className="translator-btn" onClick={async () => { await captureFromCamera(); closeCameraModal(); }}>📸 Capture</button>
+              <button className="translator-btn" onClick={() => closeCameraModal()}>✖ Close</button>
+            </div>
+            <canvas ref={canvasRef} style={{ display: 'none' }} />
+          </div>
+        </div>
+      )}
+
+      {/* Quick Solution area */}
       <div id="quick-solution-anchor" style={{ marginBottom: 14 }}>
         <div className="ai-output">
           <h4 style={{ margin: "6px 0 10px 0" }}>🔎 Quick Solution</h4>
@@ -354,95 +558,101 @@ export default function MathTutorSection() {
         </div>
       </div>
 
-    {/* Teacher pattern section */}
-<div style={{ marginTop: 4 }}>
-  <h4 style={{ marginBottom: 8 }}>📘 Teacher's Pattern (paste text or upload image)</h4>
-  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-    {/* Textarea for teacher pattern text */}
-    <textarea
-      placeholder="Paste teacher's pattern steps here (optional)"
-      rows="3"
-      value={teacherPatternText}
-      onChange={(e) => setTeacherPatternText(e.target.value)}
-      style={{
-        flex: 1,
-        padding: 8,
-        borderRadius: 6,
-        border: "1px solid #ccc",
-        minWidth: 160,
-      }}
-    />
-
-    {/* Upload pattern image area */}
-    <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 140 }}>
-      {/* Hidden input */}
-      <input
-        type="file"
-        accept="image/*"
-        onChange={handlePatternFileChange}
-        ref={patternFileRef}
-        id="pattern-upload"
-        style={{ display: "none" }}
-      />
-
-      {/* Styled upload button */}
-      <label
-        htmlFor="pattern-upload"
-        className="translator-btn"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 8,
-          cursor: "pointer",
-          background: "#2E8B57",
-          color: "#fff",
-          padding: "8px 12px",
-          borderRadius: 10,
-          boxShadow: "0 6px 14px rgba(0,0,0,0.08)",
-          fontWeight: 600,
-        }}
-      >
-        📂 Upload Pattern Image
-      </label>
-
-      {/* Preview of uploaded teacher pattern */}
-      {teacherPatternPreview && (
-        <div style={{ marginTop: 6 }}>
-          <img
-            src={teacherPatternPreview}
-            alt="pattern preview"
+      {/* Teacher pattern section */}
+      <div style={{ marginTop: 4 }}>
+        <h4 style={{ marginBottom: 8 }}>📘 Teacher's Pattern (paste text or upload image)</h4>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <textarea
+            placeholder="Paste teacher's pattern steps here (optional)"
+            rows="3"
+            value={teacherPatternText}
+            onChange={(e) => setTeacherPatternText(e.target.value)}
             style={{
-              width: 140,
-              height: 100,
-              objectFit: "cover",
+              flex: 1,
+              padding: 8,
               borderRadius: 6,
-              border: "1px solid #ddd",
+              border: "1px solid #ccc",
+              minWidth: 160,
             }}
           />
-          <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 140 }}>
+            <input
+              id="pattern-upload"
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={handlePatternFileChange}
+              ref={patternFileRef}
+            />
+
             <button
-              onClick={removeTeacherPatternFile}
+              type="button"
               className="translator-btn"
-              style={{ ...styles.clear, padding: "6px 8px" }}
+              title="Upload pattern image"
+              onClick={() => { try { patternFileRef.current && patternFileRef.current.click(); } catch (err) {} }}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                cursor: "pointer",
+                background: "#2E8B57",
+                color: "#fff",
+                padding: "8px 12px",
+                borderRadius: 10,
+                boxShadow: "0 6px 14px rgba(0,0,0,0.08)",
+                fontWeight: 600,
+              }}
             >
-              Close
+              📂 Upload Pattern Image
             </button>
-            <button
-              onClick={analyzeTeacherPatternImage}
-              className="translator-btn"
-              style={{ ...styles.teacher, padding: "6px 8px" }}
-            >
-              {analyzing ? "OCR…" : "Reload (OCR)"}
+
+            <button className="translator-btn camera-back-label" style={{ padding: "8px 12px", borderRadius: 10, background: "#1976d2", color: "#fff", boxShadow: "0 6px 14px rgba(0,0,0,0.08)", fontWeight: 600 }} onClick={() => openCameraModal('pattern', 'environment')}>
+              📷 Pattern Camera
             </button>
+            <button className="translator-btn camera-front-label" style={{ padding: "8px 12px", borderRadius: 10, background: "#1976d2", color: "#fff", boxShadow: "0 6px 14px rgba(0,0,0,0.08)", fontWeight: 600 }} onClick={() => openCameraModal('pattern', 'user')}>
+              📷 Pattern Camera (Front)
+            </button>
+
+            {/* Preview */}
+            {teacherPatternPreview && (
+              <div style={{ marginTop: 6 }}>
+                <img
+                  src={teacherPatternPreview}
+                  alt="pattern preview"
+                  style={{
+                    width: 140,
+                    height: 100,
+                    objectFit: "cover",
+                    borderRadius: 6,
+                    border: "1px solid #ddd",
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => teacherPatternPreview && window.open(teacherPatternPreview)}
+                />
+                <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                  <button
+                    onClick={removeTeacherPatternFile}
+                    className="translator-btn"
+                    style={{ ...styles.clear, padding: "6px 8px" }}
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => teacherPatternPreview && window.open(teacherPatternPreview)}
+                    className="translator-btn"
+                    style={{ ...styles.teacher, padding: "6px 8px" }}
+                  >
+                    Open
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      )}
-    </div>
-  </div>
-</div>
+      </div>
 
-
-      {/* Action buttons: Follow Teacher's Method / Alternative / Similar */}
+      {/* Action buttons */}
       <div style={{ display: "flex", gap: 12, marginTop: 18, flexWrap: "wrap" }}>
         <AnimatedButton onClick={handleSolveTeacher} className="translator-btn" disabled={teacherLoading} style={{ ...styles.teacher }}>
           {teacherLoading ? "Solving (teacher)..." : "Follow Teacher's Method"}
@@ -457,7 +667,7 @@ export default function MathTutorSection() {
         </AnimatedButton>
       </div>
 
-      {/* Teacher solution (always above alternative) */}
+      {/* Solutions & similar output */}
       <div id="teacher-solution-anchor" style={{ marginTop: 18 }}>
         <div className="ai-output">
           <h4>📊 Step-by-Step Solution (Teacher's Method)</h4>
@@ -468,7 +678,6 @@ export default function MathTutorSection() {
         </div>
       </div>
 
-      {/* Alternative solution (below teacher) */}
       <div id="alt-solution-anchor" style={{ marginTop: 18 }}>
         <div className="ai-output">
           <h4>🔁 Alternative Method</h4>
@@ -479,7 +688,6 @@ export default function MathTutorSection() {
         </div>
       </div>
 
-      {/* Similar questions */}
       {similar && (
         <div style={{ marginTop: 18 }}>
           <h4>🔄 Similar Practice Problems</h4>

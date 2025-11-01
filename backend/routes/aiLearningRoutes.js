@@ -652,18 +652,33 @@ router.post("/math-similar", async (req, res) => {
   }
 });
 
-// Typed explain — same language forcing
+// Typed explain — stricter "same language" and non-story enforcement
 router.post("/explain", async (req, res) => {
   try {
-    const { text, style = "story", targetLang = "English" } = req.body;
-    if (!text || !text.trim()) return res.status(400).json({ error: "⚠️ Please provide input text to explain." });
+    const { text, style = "simple", targetLang = "English" } = req.body;
+    if (!text || !text.trim()) {
+      return res.status(400).json({ error: "⚠️ Please provide input text to explain." });
+    }
 
+    // Make style explicit (examples: "simple", "bullet", "summary", "technical")
+    // Default is "simple" so we don't accidentally ask for a story.
     const prompt = `
-You are a friendly teacher.
-Write ONLY in ${targetLang}. Use the native script of ${targetLang} (not transliteration). Do not include English words unless unavoidable.
-Explain the user's text in simple, clear language as a short ${style}. Keep it concise (3–6 short paragraphs).
-Return only the explanation text. No headings or meta commentary.
+You are a friendly teacher and an explanation-only assistant.
+Follow ALL rules below exactly:
+
+1) LANGUAGE: Write ONLY in ${targetLang}. Use the native script of ${targetLang} (no transliteration).
+2) TONE & CONTENT: Explain the user's text in plain, simple, factual language. Do NOT create a story, narrative, fictional example, or anecdote unless the user explicitly asked for an example.
+3) STYLE: Produce a ${style} explanation — short, clear, and practical.
+4) FORMAT: Return exactly 3–6 short paragraphs. Each paragraph should be 1–2 short sentences. Do NOT include headings, bullet lists, metadata, extra commentary, or translation notes.
+5) LENGTH: Keep it concise and focused on understanding (no long introductions).
+6) OUTPUT: Return ONLY the explanation text (no labels like "Explanation:" and no additional JSON).
+
+DO NOT break these rules. If the user's text is already short, still follow the paragraph and sentence limits.
 `.trim();
+
+    // Debug: log prompt and user text (remove or reduce in production)
+    console.debug("Explain prompt:", prompt);
+    console.debug("User text:", text);
 
     const chatResp = await client.chat.completions.create({
       model: "gpt-4o-mini",
@@ -671,11 +686,13 @@ Return only the explanation text. No headings or meta commentary.
         { role: "system", content: prompt },
         { role: "user", content: text },
       ],
-      temperature: 0.6,
+      temperature: 0.2,   // lower temperature => less creative/storylike answers
       max_tokens: 800,
     });
 
     const explanation = (chatResp.choices?.[0]?.message?.content || "").trim();
+    console.debug("Model explanation:", explanation);
+
     if (!explanation) return res.status(500).json({ error: "Model did not return an explanation." });
 
     const ttsResp = await client.audio.speech.create({
@@ -691,6 +708,7 @@ Return only the explanation text. No headings or meta commentary.
     res.status(500).json({ error: err.message });
   }
 });
+
 
 
 
