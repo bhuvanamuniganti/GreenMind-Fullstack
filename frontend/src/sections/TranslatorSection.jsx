@@ -28,6 +28,17 @@ export default function TranslatorSection() {
 
   const audioRef = useRef(null);
 
+  // === Camera state & refs ===
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const canvasRef = useRef(null);
+  // manual facing toggle (user/environment)
+  const [facingMode, setFacingMode] = useState(() => {
+    const w = window.innerWidth || document.documentElement.clientWidth;
+    return w >= 1024 ? "user" : "environment";
+  });
+
   // === Helpers ===
   const base64ToBlobUrl = (base64, mime = "audio/mpeg") => {
     try {
@@ -66,15 +77,11 @@ export default function TranslatorSection() {
       if (p.re.test(sample)) return p.lang;
     }
 
-    // If mostly ASCII letters, assume English; otherwise do a simple fallback scan:
     const nonWhitespace = sample.replace(/\s/g, "");
     const asciiLetters = (nonWhitespace.match(/[A-Za-z]/g) || []).length;
     const nonAscii = nonWhitespace.length - asciiLetters;
 
-    // heuristics
     if (asciiLetters > Math.max(5, nonAscii)) return "English";
-
-    // fallback: return English if uncertain
     return "English";
   };
 
@@ -299,6 +306,15 @@ export default function TranslatorSection() {
         audioRef.current = null;
       }
       if (preview) URL.revokeObjectURL(preview);
+      // stop camera stream if active on unmount
+      if (streamRef.current) {
+        try {
+          streamRef.current.getTracks().forEach((t) => t.stop());
+        } catch (e) {
+          // ignore
+        }
+        streamRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -313,6 +329,93 @@ export default function TranslatorSection() {
     setExplanation("");
   };
 
+  /* ================= Camera functions ================= */
+  // stop camera stream safely
+  const stopCameraStream = () => {
+    if (streamRef.current) {
+      try {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      } catch (e) {
+        // ignore
+      }
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      try { videoRef.current.srcObject = null; } catch (e) {}
+    }
+  };
+
+  // open camera with current facingMode
+  const openCamera = async (mode = null) => {
+    const chosen = mode || facingMode;
+    const constraints = { video: { facingMode: { ideal: chosen }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false };
+    try {
+      const s = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = s;
+      if (videoRef.current) {
+        videoRef.current.srcObject = s;
+        videoRef.current.play().catch(() => {});
+      }
+      setCameraOpen(true);
+    } catch (err) {
+      console.error("Camera open error:", err);
+      alert("Unable to access camera. Make sure you've granted permission and that your site is served over HTTPS.");
+    }
+  };
+
+  const closeCamera = () => {
+    setCameraOpen(false);
+    stopCameraStream();
+  };
+
+  // flip between user/environment while modal open
+  const flipCamera = async () => {
+    const next = facingMode === "user" ? "environment" : "user";
+    setFacingMode(next);
+    stopCameraStream();
+    setTimeout(() => openCamera(next), 200);
+  };
+
+  const captureFromCamera = async () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current || document.createElement('canvas');
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext('2d');
+    // mirror for user-facing cameras so captured image looks natural
+    const facing = facingMode;
+    if (facing === 'user') {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+    }
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    // reset transform
+    if (facing === 'user') {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+    // convert to blob and set file + preview
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        alert('Capture failed.');
+        return;
+      }
+      const capturedFile = new File([blob], `capture_${Date.now()}.jpg`, { type: 'image/jpeg' });
+      setFile(capturedFile);
+      const url = URL.createObjectURL(blob);
+      if (preview) URL.revokeObjectURL(preview);
+      setPreview(url);
+      // clear text fields like when choosing image
+      setText('');
+      setTranslated('');
+      setExplanation('');
+      setDetectedLang('English');
+      // stop camera after capture
+      closeCamera();
+    }, 'image/jpeg', 0.92);
+  };
+
+  /* ================= Render ================= */
   return (
     <div className="translator-container">
       <h2 className="translator-title">🌍 AI Translator</h2>
@@ -337,42 +440,36 @@ export default function TranslatorSection() {
         />
 
         {preview && (
-          <div
-            style={{
-              position: "absolute",
-              left: "12px",
-              bottom: "12px",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              background: "#fff",
-              border: "1px solid #e5e7eb",
-              borderRadius: "6px",
-              padding: "6px",
-              boxShadow: "0 6px 18px rgba(0,0,0,0.08)",
-              zIndex: 5,
-            }}
-          >
-            <img src={preview} alt="preview" style={{ width: "90px", height: "66px", objectFit: "cover", borderRadius: "6px" }} />
-            <button
-              onClick={() => {
-                setFile(null);
-                if (preview) { URL.revokeObjectURL(preview); setPreview(null); }
-                setBooks([]); // explicit: removing image clears suggestions
-              }}
-              style={{
-                background: "red",
-                color: "white",
-                border: "none",
-                borderRadius: "50%",
-                width: "22px",
-                height: "22px",
-                cursor: "pointer",
-                fontWeight: "bold",
-              }}
-            >
-              ✖
-            </button>
+          <div className="image-overlay" role="group" aria-label="Image preview">
+            <img src={preview} alt="preview" style={{ width: 90, height: 66, objectFit: 'cover', borderRadius: 6 }} />
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <button
+                type="button"
+                className="tiny-btn open"
+                onClick={(e) => {
+                  // open preview in a new tab (full view)
+                  e.preventDefault();
+                  if (preview) {
+                    window.open(preview, "_blank");
+                  }
+                }}
+                title="Open full view"
+              >
+                Open
+              </button>
+              <button
+                type="button"
+                className="tiny-btn close"
+                onClick={() => {
+                  setFile(null);
+                  if (preview) { URL.revokeObjectURL(preview); setPreview(null); }
+                  setBooks([]); // explicit: removing image clears suggestions
+                }}
+                title="Remove image"
+              >
+                ✖
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -387,7 +484,9 @@ export default function TranslatorSection() {
               style={{ display: "none" }}
               onChange={(e) => {
                 const selectedFile = e.target.files[0];
+                if (!selectedFile) return;
                 setFile(selectedFile);
+                if (preview) URL.revokeObjectURL(preview);
                 setPreview(URL.createObjectURL(selectedFile));
                 // do not clear books here — user may choose to re-analyze
                 setText("");
@@ -398,12 +497,11 @@ export default function TranslatorSection() {
             />
           </label>
 
-          <button onClick={handleAnalyze} className="translator-btn secondary" disabled={analyzeLoading}>
-            {analyzeLoading ? "Working..." : "📸 Analyze"}
-          </button>
+          {/* Camera open button (orange) */}
+          <button onClick={() => openCamera()} className="translator-btn camera">📷 Camera</button>
 
-          <button onClick={handleExplain} className="translator-btn explain" disabled={explainLoading}>
-            {explainLoading ? "Working..." : "Explain"}
+          <button onClick={handleAnalyze} className="translator-btn analyze" disabled={analyzeLoading}>
+            {analyzeLoading ? "Working..." : "📸 Analyze"}
           </button>
         </div>
 
@@ -418,13 +516,41 @@ export default function TranslatorSection() {
             <option value="Malayalam">Malayalam</option>
           </select>
 
+          {/* Translate + Explain side-by-side (explain next to translate) */}
           <button onClick={handleTranslate} className="translator-btn primary" disabled={translateLoading}>
             {translateLoading ? "Translating..." : "🔄 Translate"}
+          </button>
+
+          <button onClick={handleExplain} className="translator-btn explain" disabled={explainLoading}>
+            {explainLoading ? "Working..." : "Explain"}
           </button>
         </div>
 
         <button onClick={clearAll} className="translator-btn danger">❌ Clear</button>
       </div>
+
+      {/* Camera modal */}
+      {cameraOpen && (
+        <div className="camera-modal" role="dialog" aria-modal="true" aria-label="Camera capture">
+          <div className="camera-inner">
+            <video ref={videoRef} className="camera-video" playsInline muted autoPlay />
+
+            <div className="camera-controls" style={{ justifyContent: "space-between" }}>
+              {/* left side: Close and Flip (Close left-aligned) */}
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <button onClick={closeCamera} className="translator-btn modal-close">✖ Close</button>
+                <button onClick={flipCamera} className="translator-btn flip">🔁 Flip</button>
+              </div>
+
+              {/* right side: Capture */}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={captureFromCamera} className="translator-btn capture">📸 Capture</button>
+              </div>
+            </div>
+          </div>
+          <canvas ref={canvasRef} style={{ display: "none" }} />
+        </div>
+      )}
 
       {/* English Input */}
       {text && (

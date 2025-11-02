@@ -258,3 +258,242 @@
   min-width: 0;
   box-sizing: border-box;
 }
+/* ================= Camera modal styles — append to the end of TranslatorSection.css ================= */
+
+.camera-modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.45);
+  z-index: 9999;
+  padding: 20px;
+}
+
+.camera-inner {
+  width: 100%;
+  max-width: 920px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0b2d1611;
+  box-shadow: 0 12px 40px rgba(2,6,23,0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+/* video area */
+.camera-video {
+  width: 100%;
+  height: 60vh;
+  max-height: 640px;
+  background: black;
+  border-radius: 8px;
+  object-fit: cover;
+  display: block;
+}
+
+/* controls inside modal */
+.camera-controls {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+  padding: 8px 6px;
+}
+
+/* smaller mobile tweak */
+@media (max-width: 600px) {
+  .camera-video { height: 46vh; }
+  .image-overlay { left: 8px; bottom: 8px; }
+}
+
+/* ensure overlay preview doesn't overlap modal in narrow screens */
+@media (max-width: 920px) {
+  .camera-inner { padding: 10px; }
+}
+
+/* keep modal contents accessible */
+.camera-modal:focus { outline: none; }
+/* ================= Camera modal styles & button colors — append to the end of TranslatorSection.css ================= */
+
+/* Button color palette — meaningful to action */
+/* Choose Image (blue) */
+.translator-btn.choose {
+  background: linear-gradient(90deg,#2563eb,#3b82f6);
+  color: #fff;
+}
+/* Camera (orange) */
+.translator-btn.camera {
+  background: linear-gradient(90deg,#f97316,#fb923c);
+  color: #fff;
+}
+.translator-btn.camera:hover { filter: brightness(0.98); }
+
+/* Analyze (teal) */
+.translator-btn.analyze {
+  background: linear-gradient(90deg,#0d9488,#14b8a6);
+  color: #fff;
+}
+
+/* Translate (green) primary */
+.translator-btn.primary {
+  background: linear-gradient(90deg,#09722f,#22c55e);
+  color: #fff;
+}
+
+/* Explain (purple) */
+.translator-btn.explain {
+  background: linear-gradient(90deg,#6b46c1,#8b5cf6);
+  color: #fff;
+}
+
+/* Clear (danger - red) */
+.translator-btn.danger {
+  background: linear-gradient(90deg,#dc2626,#ef4444);
+  color: #fff;
+}
+
+/* Capture (indigo) */
+.translator-btn.capture {
+  background: linear-gradient(90deg,#4c6ef5,#6366f1);
+  color: #fff;
+}
+
+/* Flip (muted cyan) */
+.translator-btn.flip {
+  background: linear-gradient(90deg,#0891b2,#06b6d4);
+  color: #fff;
+}
+
+/* Modal close button (dark gray) */
+.translator-btn.modal-close {
+  background: linear-gradient(90deg,#374151,#111827);
+  color: #fff;
+}
+
+/* Tiny overlay buttons for preview (Open / Close) */
+.image-overlay {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: inline-flex;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.98);
+  padding: 6px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+  align-items: center;
+  z-index: 6;
+}
+.image-overlay img {
+  max-width: 140px;
+  max-height: 90px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+/* tiny buttons inside overlay */
+.image-overlay .tiny-btn {
+  border: none;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+  background: #f3f4f6;
+  color: #0b2d16;
+  min-width: 44px;
+  text-align: center;
+}
+.image-overlay .tiny-btn.open {
+  background: linear-gradient(90deg,#fb923c,#f97316); /* orange - open camera */
+  color: #fff;
+}
+.image-overlay .tiny-btn.close {
+  background: linear-gradient(90deg,#ef4444,#dc2626); /* red - remove */
+  color: #fff;
+}
+
+/* Camera modal */
+.camera-modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.45);
+  z-index: 9999;
+  padding: 20px;
+}
+.camera-inner {
+  width: 100%;
+  max-width: 920px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0b2d1611;
+  box-shadow: 0 12px 40px rgba(2,6,23,0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+/* video area */
+.camera-video {
+  width: 100%;
+  height: 60vh;
+  max-height: 640px;
+  background: black;
+  border-radius: 8px;
+  object-fit: cover;
+  display: block;
+}
+
+/* controls inside modal - close on left, capture on right */
+.camera-controls {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 6px;
+}
+
+/* smaller mobile tweak */
+@media (max-width: 600px) {
+  .camera-video { height: 46vh; }
+  .image-overlay { left: 8px; bottom: 8px; }
+  .controls-row { flex-direction: column; align-items: flex-start; }
+}
+
+/* ensure modal video isn't huge on small devices */
+@media (max-width: 920px) {
+  .camera-inner { padding: 10px; }
+}
+
+/* small accessibility focus */
+.camera-modal:focus { outline: none; }
+
+/* ensure translator-buttons keep consistent hover effect */
+.translator-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.10); }
+.translator-btn:active { transform: translateY(0) scale(0.97); }
+
+/* ensure tiny buttons responsive */
+.image-overlay .tiny-btn { font-size: 13px; }
+
+/* keep overlay above everything but below modal */
+.image-overlay { z-index: 20; }
+
+/* keep inputs and buttons shrinkable */
+.translator-controls input,
+.translator-controls select,
+.translator-controls .translator-select,
+.controls-row input,
+.controls-row button,
+.controls-row .translator-btn {
+  min-width: 0;
+  box-sizing: border-box;
+}
