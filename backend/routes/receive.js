@@ -28,25 +28,30 @@ function auth(req, res, next) {
 
 // List all available uploads (include my own, but mark which are mine) & unclaimed
 // backend/routes/receive.js
+// backend/routes/receive.js
 router.get("/receive", auth, (req, res) => {
-  const raw = db.prepare(`
-    SELECT u.id, u.user_id, u.filename,
-           u.title, u.category, u.description, u.quality, u.created_at,
-           usr.full_name AS uploader_name,
-           (u.user_id = ?) AS isMine
-    FROM uploads u
-    JOIN users usr ON usr.id = u.user_id
-    WHERE u.claimed_by IS NULL
-    ORDER BY u.created_at DESC
-  `).all(req.user.sub);
+  const rowsRaw = db
+    .prepare(
+      `SELECT u.id, u.user_id, u.filename,
+              u.title, u.category, u.description, u.quality, u.created_at,
+              usr.full_name AS uploader_name,
+              (u.user_id = ?) AS isMine
+       FROM uploads u
+       JOIN users usr ON usr.id = u.user_id
+       WHERE u.claimed_by IS NULL
+       ORDER BY u.created_at DESC`
+    )
+    .all(req.user.sub);
 
-  const rows = raw.map(r => ({
+  const BASE = process.env.PUBLIC_BASE_URL || ""; // e.g. https://api.yourdomain.com
+  const rows = rowsRaw.map(r => ({
     ...r,
-    imageUrl: `/uploads/${encodeURIComponent(r.filename)}`, // encoded once
+    imageUrl: `${BASE}/uploads/${encodeURIComponent(r.filename)}`,
   }));
 
   res.json(rows);
 });
+
 
 
 
