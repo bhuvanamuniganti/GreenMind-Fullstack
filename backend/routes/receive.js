@@ -190,50 +190,34 @@ router.post("/receive/why", auth, async (req, res) => {
 });
 
 // --- AI Thank-you text (with safe fallback)
-router.post("/receive/thanks", auth, async (req, res) => {
-  const { userName = "Friend", itemTitle = "a resource", category = "Learning" } = req.body || {};
-  // Fallback text if OpenAI is unavailable
-  const fallback = {
-    title: "Certificate of Appreciation",
-    subtitle: "For Supporting Smart Learning & Reuse",
-    body:
-      `${userName}, thank you for receiving “${itemTitle}”.\n\n` +
-      `By choosing to reuse instead of buying new, you helped reduce waste and ` +
-      `support a smarter, more affordable learning journey for someone in our community.\n\n` +
-      `Every small act like this inspires others to share, receive, and learn together. 💚`,
-    hashtags: ["#ShareToLearn", "#ReduceWaste", "#GreenMindAI", "#SmartLearning"],
-  };
+// --- Simple Thank-You (no PDF, no AI) ---
+router.post("/receive/thanks", auth, (req, res) => {
+  // Optional values you may send from the client
+  const {
+    userName = "Friend",
+    itemTitle = "your item",
+    address = "",          // optional: show last 4 chars only
+    orderId = "",          // optional: show an order ref on UI
+    etaDays = 3            // optional: estimated delivery
+  } = req.body || {};
 
-  try {
-    const prompt =
-      `Write a 3–5 sentence warm appreciation message for someone who claimed ` +
-      `an educational resource on GreenMindAI. Mention reuse, learning, and community impact. ` +
-      `Return JSON with keys: title, subtitle, body, hashtags (array of 3-6 short tags). ` +
-      `Receiver: ${userName}. Item: ${itemTitle}. Category: ${category}. Tone: uplifting, humble, inclusive.`
+  // small helper to safely show part of address
+  const maskedAddress = address
+    ? `${address.slice(0, 6)}…${address.slice(-4)}`
+    : "";
 
-    const r = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-      temperature: 0.5,
-    });
+  const message = `Thank you for choosing us, ${userName}! We’ve received your order for “${itemTitle}”. It will be delivered to your address soon${etaDays ? ` (ETA ~${etaDays} days)` : ""}.`;
 
-    let out = fallback;
-    try {
-      const parsed = JSON.parse(r.choices[0].message.content);
-      out = {
-        title: parsed.title || fallback.title,
-        subtitle: parsed.subtitle || fallback.subtitle,
-        body: parsed.body || fallback.body,
-        hashtags: Array.isArray(parsed.hashtags) && parsed.hashtags.length ? parsed.hashtags : fallback.hashtags,
-      };
-    } catch { /* ignore and use fallback */ }
-
-    res.json(out);
-  } catch (e) {
-    // Network / OpenAI blocked: serve fallback gracefully
-    res.json(fallback);
-  }
+  // Return a clean JSON payload the frontend can show in a toast or banner
+  return res.json({
+    ok: true,
+    message,
+    details: {
+      orderId: orderId || undefined,
+      address: maskedAddress || undefined,
+      etaDays
+    }
+  });
 });
 
 module.exports = router;

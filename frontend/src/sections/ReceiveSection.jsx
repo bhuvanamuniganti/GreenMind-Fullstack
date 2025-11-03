@@ -39,24 +39,26 @@ export default function ReceiveSection({ setMe }) {
   }, []);
 
   // claim and then show simple success toast
-  async function handleClaim(item) {
-    try {
-      await axios.post(
-        `${API_BASE}/api/receive/claim/${item.id}`,
-        {},
-        { withCredentials: true }
-      );
+ async function handleClaim(item) {
+  try {
+    const { data } = await axios.post(
+      `${API_BASE}/api/receive/claim/${item.id}`,
+      {},
+      { withCredentials: true }
+    );
 
-      // remove from UI + deduct points
-      setItems((prev) => prev.filter((x) => x.id !== item.id));
-      if (setMe) setMe((p) => ({ ...p, points: (p.points || 0) - 10 }));
+    // remove from UI + deduct points
+    setItems(prev => prev.filter(x => x.id !== item.id));
+    if (setMe) setMe(p => ({ ...p, points: (p.points || 0) - 10 }));
 
-      toast.success("Item claimed!");
-    } catch (err) {
-      console.error("Claim failed", err);
-      toast.error("⚠️ Could not claim item");
-    }
+    // ✅ show simple thank-you (no PDF, no extra calls)
+    toast.success(data?.message || "Thank you for choosing us! We’ve received your order.");
+  } catch (err) {
+    console.error("Claim failed", err);
+    toast.error("⚠️ Could not claim item");
   }
+}
+
 
   // handle request submit
   async function handleRequest(e) {
