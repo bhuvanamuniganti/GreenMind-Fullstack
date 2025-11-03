@@ -119,13 +119,14 @@ export default function ReceiveSection({ setMe }) {
               {/* Image left (or top on mobile) */}
               <div className="card-media-small">
                 <img
-                  src={item.imageUrl ? `${API_BASE}${item.imageUrl}` : ""}
-                  alt={item.title || "Uploaded item"}
-                  onError={(e) => {
-                    e.currentTarget.onerror = null;
-                    e.currentTarget.src = PLACEHOLDER_SVG;
-                  }}
-                />
+  src={item.imageUrl ? `${API_BASE}${encodeURI(item.imageUrl)}` : ""}  // ⬅ add encodeURI
+  alt={item.title || "Uploaded item"}
+  onError={(e) => {
+    e.currentTarget.onerror = null;
+    e.currentTarget.src = PLACEHOLDER_SVG;
+  }}
+/>
+
               </div>
 
               {/* Text right */}

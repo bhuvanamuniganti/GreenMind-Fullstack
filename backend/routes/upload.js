@@ -76,25 +76,60 @@ async function extractPdfText(absPath) {
   return (parsed.text || "").trim();
 }
 
+// NEW: vision exact-title extractor for images (strict, verbatim)
+async function extractExactTitleFromImage(absPath) {
+  try {
+    const b64 = fs.readFileSync(absPath, { encoding: "base64" });
+    const resp = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      temperature: 0,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a STRICT extractor. Return ONLY JSON: {\"title\": string, \"subtitle\": string|null, \"is_confident\": boolean}. " +
+            "Rules: (1) Copy the exact printed book title from the cover/spine (preserve casing & punctuation). " +
+            "(2) If uncertain, set title:\"\" and is_confident:false.",
+        },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Extract the exact printed book title from this image." },
+            { type: "image_url", image_url: { url: `data:image/jpeg;base64,${b64}` } },
+          ],
+        },
+      ],
+    });
+    const data = JSON.parse(resp.choices[0].message.content || "{}");
+    return (data.title || "").trim();
+  } catch {
+    return "";
+  }
+}
+
 async function generateMetadataFromText(text) {
   const resp = await client.chat.completions.create({
     model: "gpt-4o-mini",
+    temperature: 0, // more deterministic
+    response_format: { type: "json_object" },
     messages: [
       {
         role: "system",
         content:
           "You review uploaded study resources and return STRICT JSON only (no markdown) with keys: " +
-          `{"title": string, "category": string, "description": string, "quality": "High"|"Medium"|"Low"}. ` +
+          `{"title": string, "title_exact_from_text": string, "category": string, "description": string, "quality": "High"|"Medium"|"Low"}. ` +
+          "Rules: (1) 'title_exact_from_text' must be a verbatim substring from the provided text (no rephrasing). " +
+          "(2) If no clear title appears in the text, set 'title_exact_from_text' to ''. " +
+          "(3) 'title' can be cleaned/human-friendly, but prefer 'title_exact_from_text' when available. " +
           "Category should be short (e.g., Math, Biology, Physics, Language, General). " +
           "Description must be 1–2 sentences, student-friendly.",
       },
       {
         role: "user",
-        content: "Analyze the following content and produce the JSON: \n\n" + text.slice(0, 8000),
+        content: "Analyze the following content and produce the JSON: \n\n" + (text || "").slice(0, 8000),
       },
     ],
-    response_format: { type: "json_object" },
-    temperature: 0.3,
   });
 
   let json;
@@ -107,39 +142,14 @@ async function generateMetadataFromText(text) {
 
   return {
     title: json.title || "Untitled Resource",
+    title_exact_from_text: json.title_exact_from_text || "",
     category: json.category || "General",
     description: json.description || "No description available.",
     quality: ["High", "Medium", "Low"].includes(json.quality) ? json.quality : "Medium",
   };
 }
 
-// Conservative fallback heuristic (kept but NOT used unless you change policy)
-function heuristicIsEducational({ title, category, description, extractedText }) {
-  const keywords = [
-    "book","textbook","notebook","workbook","worksheet","exercise","study","learning","education","educational","school",
-    "lesson","tutorial","guide","exam","course","lecture","chapter","solution","answers","homework","syllabus","flashcard"
-  ];
-  const containsKeyword = (txt) => {
-    if (!txt) return false;
-    const lower = String(txt).toLowerCase();
-    return keywords.some(k => lower.includes(k));
-  };
-
-  if (containsKeyword(category)) return { ok: true, why: "category_keyword" };
-  if (containsKeyword(title)) return { ok: true, reason: "title_keyword" };
-  if (containsKeyword(description)) return { ok: true, reason: "description_keyword" };
-
-  const txt = (extractedText || "").trim();
-  const words = (txt.match(/\b[A-Za-z]{2,}\b/g) || []).length;
-  if (words >= 8) return { ok: true, why: "ocr_word_count", words };
-
-  if (txt && containsKeyword(txt)) return { ok: true, why: "ocr_keyword" };
-
-  return { ok: false, why: "no_keyword_or_text", seen: { title, category, description, words } };
-}
-
 // Model-based yes/no classifier
-// Returns object with ok: true|false|null (null = classifier error / non-json)
 async function classifyEducationalWithModel({ title, category, description, extractedText }) {
   try {
     const promptSystem = `You are a strict classifier. Given metadata and extracted text, answer with STRICT JSON only: {"isEducational": boolean, "reason": string}.
@@ -159,7 +169,6 @@ async function classifyEducationalWithModel({ title, category, description, extr
     const raw = resp.choices[0].message.content;
     let json;
     try {
-      // If already parsed by response_format it may be an object
       json = typeof raw === "object" ? raw : JSON.parse(raw);
     } catch (e) {
       console.warn("Classifier returned non-JSON:", raw);
@@ -189,10 +198,14 @@ router.post("/upload", auth, upload.single("image"), async (req, res) => {
 
     // 1) Get text content (OCR or PDF)
     let extractedText = "";
+    let pdfInfoTitle = "";
     if (mime.startsWith("image/")) {
       extractedText = await ocrImageToText(absPath);
     } else if (mime === "application/pdf") {
-      extractedText = await extractPdfText(absPath);
+      const dataBuffer = fs.readFileSync(absPath);
+      const parsed = await pdfParse(dataBuffer);
+      extractedText = (parsed.text || "").trim();
+      pdfInfoTitle = parsed?.info?.Title ? String(parsed.info.Title).trim() : "";
     }
 
     // 2) Generate AI metadata (title/category/description/quality)
@@ -204,26 +217,42 @@ router.post("/upload", auth, upload.single("image"), async (req, res) => {
       return res.status(400).json({ error: "Low quality", reason: "low_quality" });
     }
 
-    // 3) Run model-based classifier (preferred)
+    // --- NEW: choose an EXACT title if possible ---
+    let finalTitle = (details.title_exact_from_text || "").trim();
+
+    // prefer PDF metadata title if present
+    if (!finalTitle && pdfInfoTitle) {
+      finalTitle = pdfInfoTitle;
+    }
+
+    // for images, try strict vision exact-title if we still don't have one
+    if (!finalTitle && mime.startsWith("image/")) {
+      const fromImage = await extractExactTitleFromImage(absPath);
+      if (fromImage) finalTitle = fromImage;
+    }
+
+    // sanity fallback to friendly title
+    if (!finalTitle || finalTitle.length < 3 || finalTitle.length > 120) {
+      finalTitle = (details.title || "Untitled Resource").trim();
+    }
+
+    // 3) Run model-based classifier (preferred) with finalTitle
     const classifier = await classifyEducationalWithModel({
-      title: details.title,
+      title: finalTitle,
       category: details.category,
       description: details.description,
       extractedText,
     });
 
-    // If classifier returned a boolean decision, obey it
     if (classifier.ok === true) {
-      // OK — proceed to save
+      // proceed
     } else if (classifier.ok === false) {
-      // classifier explicitly rejected -> delete file & respond 400
       try { if (fs.existsSync(absPath)) fs.unlinkSync(absPath); } catch (e) { console.warn("delete failed", e); }
       return res.status(400).json({
         error: "Uploaded image is not recognized as an educational item.",
         reason: classifier.reason || (classifier.modelResult && JSON.stringify(classifier.modelResult)) || "classifier_rejected",
       });
     } else {
-      // classifier returned null (error / non-json / unexpected) -> BE STRICT: reject
       try { if (fs.existsSync(absPath)) fs.unlinkSync(absPath); } catch (e) { console.warn("delete failed", e); }
       return res.status(400).json({
         error: "Classifier failure or ambiguous result.",
@@ -232,7 +261,7 @@ router.post("/upload", auth, upload.single("image"), async (req, res) => {
       });
     }
 
-    // 4) Save to DB
+    // 4) Save to DB (store finalTitle)
     const now = new Date().toISOString();
     const info = db
       .prepare(
@@ -244,7 +273,7 @@ router.post("/upload", auth, upload.single("image"), async (req, res) => {
       .run(
         req.user.sub,
         filename,
-        details.title,
+        finalTitle,
         details.category,
         details.description,
         details.quality,
@@ -254,13 +283,13 @@ router.post("/upload", auth, upload.single("image"), async (req, res) => {
     // 5) Award points
     db.prepare("UPDATE users SET points = points + 10 WHERE id = ?").run(req.user.sub);
 
-    // 6) Respond
+    // 6) Respond (return finalTitle)
     res.json({
       success: true,
       id: info.lastInsertRowid,
       filename,
       imageUrl,
-      title: details.title,
+      title: finalTitle,
       category: details.category,
       description: details.description,
       quality: details.quality,
