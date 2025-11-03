@@ -4,8 +4,6 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import "./ReceiveSection.css";
 
-
-
 const PLACEHOLDER_SVG =
   'data:image/svg+xml;utf8,' +
   encodeURIComponent(
@@ -38,27 +36,38 @@ export default function ReceiveSection({ setMe }) {
     })();
   }, []);
 
+  // Build a safe image src:
+  // - if absolute (http/https), use as-is
+  // - if relative (/uploads/...), prefix with API_BASE
+  const buildImageSrc = (u) => {
+    if (!u) return "";
+    if (/^https?:\/\//i.test(u)) return encodeURI(u);
+    return `${API_BASE}${encodeURI(u)}`;
+  };
+
   // claim and then show simple success toast
- async function handleClaim(item) {
-  try {
-    const { data } = await axios.post(
-      `${API_BASE}/api/receive/claim/${item.id}`,
-      {},
-      { withCredentials: true }
-    );
+  async function handleClaim(item) {
+    try {
+      const { data } = await axios.post(
+        `${API_BASE}/api/receive/claim/${item.id}`,
+        {},
+        { withCredentials: true }
+      );
 
-    // remove from UI + deduct points
-    setItems(prev => prev.filter(x => x.id !== item.id));
-    if (setMe) setMe(p => ({ ...p, points: (p.points || 0) - 10 }));
+      // remove from UI + deduct points
+      setItems((prev) => prev.filter((x) => x.id !== item.id));
+      if (setMe) setMe((p) => ({ ...p, points: (p.points || 0) - 10 }));
 
-    // ✅ show simple thank-you (no PDF, no extra calls)
-    toast.success(data?.message || "Thank you for choosing us! We’ve received your order.");
-  } catch (err) {
-    console.error("Claim failed", err);
-    toast.error("⚠️ Could not claim item");
+      // ✅ show simple thank-you (no PDF, no extra calls)
+      toast.success(
+        data?.message ||
+          "Thank you for choosing us! We’ve received your order."
+      );
+    } catch (err) {
+      console.error("Claim failed", err);
+      toast.error("⚠️ Could not claim item");
+    }
   }
-}
-
 
   // handle request submit
   async function handleRequest(e) {
@@ -70,7 +79,11 @@ export default function ReceiveSection({ setMe }) {
     try {
       await axios.post(
         `${API_BASE}/api/request`,
-        { title: reqTitle.trim(), description: reqDesc.trim(), category: reqCategory.trim() },
+        {
+          title: reqTitle.trim(),
+          description: reqDesc.trim(),
+          category: reqCategory.trim(),
+        },
         { withCredentials: true }
       );
       toast.success("✅ Request submitted!");
@@ -121,14 +134,13 @@ export default function ReceiveSection({ setMe }) {
               {/* Image left (or top on mobile) */}
               <div className="card-media-small">
                 <img
-  src={item.imageUrl ? `${API_BASE}${encodeURI(item.imageUrl)}` : ""}  // ⬅ add encodeURI
-  alt={item.title || "Uploaded item"}
-  onError={(e) => {
-    e.currentTarget.onerror = null;
-    e.currentTarget.src = PLACEHOLDER_SVG;
-  }}
-/>
-
+                  src={buildImageSrc(item.imageUrl)}
+                  alt={item.title || "Uploaded item"}
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = PLACEHOLDER_SVG;
+                  }}
+                />
               </div>
 
               {/* Text right */}
@@ -143,11 +155,16 @@ export default function ReceiveSection({ setMe }) {
                 </p>
 
                 {/* Single label: either "Your upload" or the uploader name */}
-                <span className="badge">{mine ? "Your upload" : `By ${item.uploader_name}`}</span>
+                <span className="badge">
+                  {mine ? "Your upload" : `By ${item.uploader_name}`}
+                </span>
 
                 <div className="actions">
                   {!mine ? (
-                    <button className="btn primary" onClick={() => handleClaim(item)}>
+                    <button
+                      className="btn primary"
+                      onClick={() => handleClaim(item)}
+                    >
                       Claim
                     </button>
                   ) : (
