@@ -7,21 +7,6 @@ const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 
-// ---------- Defensive startup helpers ----------
-try {
-  const uploadsDir = path.join(__dirname, "uploads");
-  if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-    console.log("Created uploads directory:", uploadsDir);
-  }
-} catch (err) {
-  console.warn("Could not create uploads directory:", err?.message || err);
-}
-
-// Log expected DB file path (useful when DB_FILE is provided via env on Render)
-const dbFileDebug = process.env.DB_FILE || path.join(__dirname, "data", "greenmind.db");
-console.log("DB file path (used by backend):", dbFileDebug);
-
 // IMPORTS (must appear before usage)
 const initDb = require("./init");             // ensure tables/columns exist
 const authRoutes = require("./routes/auth");
@@ -35,8 +20,23 @@ const requestRoutes = require("./routes/request");
 
 // 1) Create app first
 const app = express();
-
 const isDev = process.env.NODE_ENV !== "production";
+
+// ----------- UPLOADS DIR (supports Render persistent disk) -----------
+const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, "uploads");
+try {
+  if (!fs.existsSync(UPLOADS_DIR)) {
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    console.log("Created uploads directory:", UPLOADS_DIR);
+  }
+} catch (err) {
+  console.warn("Could not create uploads directory:", err?.message || err);
+}
+console.log("Serving /uploads from:", UPLOADS_DIR);
+
+// Log expected DB file path (useful when DB_FILE is provided via env on Render)
+const dbFileDebug = process.env.DB_FILE || path.join(__dirname, "data", "greenmind.db");
+console.log("DB file path (used by backend):", dbFileDebug);
 
 // Log incoming origin header for debugging
 app.use((req, res, next) => {
@@ -50,7 +50,7 @@ const allowedOrigins = [
   "http://127.0.0.1:3000",
   "http://localhost:5173",
   "http://127.0.0.1:5173",
-  "https://greenmindaifullstack.netlify.app" // Netlify frontend origin
+  "https://greenmindaifullstack.netlify.app", // Netlify frontend origin
 ];
 
 if (!isDev && process.env.CLIENT_ORIGIN) {
@@ -63,11 +63,7 @@ app.use(cors({
   origin: (origin, callback) => {
     // allow requests with no origin (curl, Postman)
     if (!origin) return callback(null, true);
-
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-
+    if (allowedOrigins.includes(origin)) return callback(null, true);
     console.warn("Blocked by CORS, origin:", origin);
     return callback(new Error("Not allowed by CORS"));
   },
@@ -84,18 +80,17 @@ const cookieOptions = {
   secure: !isDev,                   // secure required for sameSite:'none' in browsers
   maxAge: 7 * 24 * 60 * 60 * 1000,  // 7 days
 };
-
-// expose cookieOptions to routes (so they can use same settings)
 app.set("cookieOptions", cookieOptions);
 
 // 3) Init DB after middleware
 initDb();
 
-// 4) Routes
+// 4) Static & Routes
+app.use("/uploads", express.static(UPLOADS_DIR)); // <- serve persistent uploads
+
 app.get("/health", (req, res) => res.json({ ok: true }));
 app.use("/api/auth", authRoutes);
 app.use("/api/app", appRoutes);
-app.use("/uploads", express.static("uploads"));
 app.use("/api", uploadRoutes);
 app.use("/api", receiveRoutes);
 app.use("/api/ai-tutor", aiTutorRoutes);
@@ -105,8 +100,7 @@ app.use("/api", requestRoutes);
 
 // 5) Start server
 const PORT = parseInt(process.env.PORT, 10) || 4000;
-const bindHost = '0.0.0.0';
-
+const bindHost = "0.0.0.0";
 
 const server = app.listen(PORT, bindHost, function () {
   const a = server.address();
@@ -118,5 +112,5 @@ function shutdown(signal) {
   console.log(`${signal} received — shutting down`);
   server.close(() => process.exit(0));
 }
-process.on('SIGINT', () => shutdown('SIGINT'));
-process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
