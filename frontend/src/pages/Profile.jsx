@@ -10,7 +10,9 @@ import TranslatorSection from "../sections/TranslatorSection";
 import FlashCardSection from "../sections/FlashCardSection";
 import MathTutorSection from "../sections/MathTutorSection";
 import PracticeFromImageSection from "../sections/PracticeFromImageSection";
-import ParentTalkPractice from "../sections/OralPracticeFromPhotoSection";
+import ConfidentSpeakerSection from "../sections/ConfidentSpeakerSection";
+
+
 
 
 const fmt = (n) => n?.toLocaleString?.() ?? String(n);
@@ -60,12 +62,15 @@ export default function Profile() {
 
   const LEFT_ITEMS = [
     { id: "Dashboard", title: "Dashboard", icon: "📋" },
-    { id: "translator", title: "Book2Voice", icon: "🔊" },
-    { id: "Practice from Image", title: "Parent's Helper", icon: "📷" },
-    { id: "Math Tutor", title: "Math Tutor", icon: "➗" },
-  
-    { id: "Flashcards", title: "Flashcards & Quizzes", icon: "🎴" },
+    
+   { id: "Confident Speaker", title: "Confident Speaker", icon: "🗣️" },
+    { id: "Math Tutor", title: "Smart Math", icon: "➗" },
+     { id: "Practice from Image", title: "Parent's Helper", icon: "📷" },
+     
+
+    { id: "Flashcards", title: "Quick Practice", icon: "🎴" },
     { id: "Smart AI Learning", title: "Smart AI Learning", icon: "🤖" },
+    { id: "translator", title: "Book2Voice", icon: "🔊" },
     
   ];
 
@@ -87,14 +92,14 @@ export default function Profile() {
       <div className="dashboard-cards">
         {/* ParentTalk card */}
         <div className="feature-card" onClick={() => setActiveSection("ParentTalk")} role="button">
-          <h3 className="card-title">👩‍👦 Voice & Reading Practice</h3>
+          <h3 className="card-title">👩‍👦 Assist Your Child</h3>
           <div className="card-hero">
             <img src={PH_PARENT} alt="ParentTalk" onError={(e) => safe(e,"https://via.placeholder.com/800x1200?text=ParentTalk")} />
           </div>
           <div className="card-body">
             <button className="btn btn-primary-green" 
             style = {{backgroundColor: "darkgreen", color :"white"}}
-            onClick={(e) => { e.stopPropagation(); setActiveSection("ParentTalk"); }}>Listen & Repeat</button>
+            onClick={(e) => { e.stopPropagation(); setActiveSection("translator"); }}>Open Helper</button>
           </div>
         </div>
 
@@ -137,7 +142,8 @@ export default function Profile() {
         {s === "Flashcards" && <FlashCardSection />}
         {s === "Math Tutor" && <MathTutorSection />}
         {s === "Practice from Image" && <PracticeFromImageSection />}
-        {s === "ParentTalk" && <ParentTalkPractice />}
+        {s === "Confident Speaker" && <ConfidentSpeakerSection />}
+
         {s === "Smart AI Learning" && <AiLearningStudio />}
         {s === "Smart Contribution" && <UploadSection />}
         {s === "Receive" && <ReceiveSection />}
@@ -209,11 +215,12 @@ export default function Profile() {
     <div className="impact-key">👩‍🎓 Active learners: {fmt(stats?.active_users || 0)}</div>
     <div className="impact-key">📚 Resources contributed: {fmt(stats?.resources_contributed || 0)}</div>
     <div className="impact-key">📥 Resources accessed: {fmt(stats?.resources_accessed || 0)}</div>
-    <div className="impact-key">⚡ Learning hours accelerated: {fmt(stats?.hours_saved || 0)}</div>
+    
     <div className="impact-key">♻️ Materials reused: {fmt(stats?.items_exchanged || 0)}</div>
     <hr className="impact-sep" />
     <div className="topper-block">
       <div className="topper-title">🏆 Top contributor</div>
+      <p></p>
       {topper ? (
         <div className="topper-info">
           <div className="topper-name">

@@ -1,0 +1,320 @@
+/* ================= ConfidentSpeakerSection — responsive polished styles =================
+   Overwrites earlier conflicting rules by using a scoped, high-specificity selector.
+   Keeps buttons compact, gives unique colors to each action class, and ensures
+   clean wrapping on small devices without full-width buttons.
+========================================================================================== */
+
+:root{
+  --panel-bg: #fbfdff;
+  --card-border: rgba(2,6,23,0.04);
+  --muted: #6b7280;
+  --radius: 10px;
+  --gap: 10px;
+  --btn-min: 72px;
+}
+
+/* container */
+.confident-root{
+  max-width: 1100px;
+  margin: 18px auto;
+  padding: 12px;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  color: #0f172a;
+  box-sizing: border-box;
+}
+
+/* card */
+.confident-root .cs-card{
+  background: var(--panel-bg);
+  border-radius: var(--radius);
+  padding: 16px;
+  border: 1px solid var(--card-border);
+  box-shadow: 0 6px 18px rgba(2,6,23,0.04);
+  margin-bottom: 14px;
+}
+
+/* header */
+.confident-root .cs-title { font-size: 20px; margin:0 0 6px; font-weight: 700; } /* increased weight requested */
+.confident-root .cs-sub { color: var(--muted); margin:0; font-size:13px; }
+
+/* suggestions */
+.confident-root .cs-suggestions { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+.confident-root .chip { background:#fff; border:1px solid var(--card-border); padding:6px 10px; border-radius:999px; cursor:pointer; font-size:13px; }
+.confident-root .chip-active { background:#06b6d4; color:white; border-color:transparent; }
+
+/* rows & inputs */
+.confident-root .cs-row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+.confident-root .cs-input { flex:1 1 240px; min-width:140px; padding:10px 12px; border-radius:8px; border:1px solid var(--card-border); background:white; }
+.confident-root .cs-select, .confident-root .cs-select-small { padding:8px 10px; border-radius:8px; border:1px solid var(--card-border); background:white; }
+
+/* boxes & lists */
+.confident-root .cs-box { background:#fff; border-radius:8px; padding:12px; border:1px solid var(--card-border); margin-bottom:12px; }
+.confident-root .label { font-weight:600; margin-bottom:8px; display:block; }
+
+/* ---- Buttons: base (compact, inline, shrinkable) ---- */
+/* high specificity to avoid override by external global rules */
+.confident-root .cs-card .btn {
+  display:inline-flex !important;
+  align-items:center;
+  gap:8px;
+  padding:8px 12px !important;
+  border-radius:10px !important;
+  font-size:14px !important;
+  line-height:1;
+  min-width: var(--btn-min);
+  white-space:nowrap;
+  text-overflow:ellipsis;
+  overflow:hidden;
+  box-sizing:border-box;
+  border: none !important;
+  cursor: pointer;
+  flex-shrink: 1; /* allow shrinking inside flex containers */
+  transition: transform .08s ease, box-shadow .12s ease;
+}
+
+/* ensure icon-only small buttons */
+.confident-root .cs-card .btn-icon {
+  padding:6px !important;
+  width:38px;
+  height:38px;
+  justify-content:center;
+}
+
+/* disabled */
+.confident-root .cs-card .btn[disabled] { opacity:0.65; cursor:not-allowed; transform:none !important; }
+
+/* ---- Action containers: keep inline, allow wrapping gracefully ---- */
+.confident-root .cs-card .cs-actions,
+.confident-root .cs-card .take-actions,
+.confident-root .cs-card .mini-controls {
+  display:flex;
+  gap:12px; /* increased gap between buttons (requested) */
+  align-items:center;
+  flex-wrap:wrap;         /* allow multiple rows when needed (keeps buttons compact) */
+  justify-content:flex-start;
+}
+
+/* for very dense groups (take row), keep buttons compact but allow wrap */
+.confident-root .cs-card .take { display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+.confident-root .cs-card .take-meta { display:flex; gap:12px; align-items:center; min-width:0; flex-wrap:wrap; }
+.confident-root .cs-card .take-name { font-weight:600; min-width:0; max-width: 100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* ---- Distinct button colors (explicit per class) ----
+   No shared backgrounds — each class gets its own palette.
+   Use solid accents that are visually different.
+*/
+
+/* Replaced gradients with solid colors (user requested). Keep other button styles unchanged. */
+.confident-root .cs-card .btn-primary    { background: #0d3927 !important; color:#fff !important; }
+.confident-root .cs-card .btn-muted      { background:#8f0505 !important; color:#fff!important; border:1px solid var(--card-border) !important; }
+.confident-root .cs-card .btn-record     { background: #0c4835 !important; color:#fff !important; }
+.confident-root .cs-card .btn-stop       { background: #ef4444 !important; color:#fff !important; }
+.confident-root .cs-card .btn-play       { background: #0988c3 !important; color:#fff !important; }
+.confident-root .cs-card .btn-pause      { background: #e6950a !important; color:#fff !important; }
+.confident-root .cs-card .btn-resume     { background: #7c3aed !important; color:#fff !important; }
+.confident-root .cs-card .btn-translate  { background: #0f766e !important; color:#fff !important; }
+.confident-root .cs-card .btn-transcribe { background: #0369a1 !important; color:#fff !important; }
+.confident-root .cs-card .btn-download   { background: #059669 !important; color:#fff !important; }
+.confident-root .cs-card .btn-danger     { background: #dc2626 !important; color:#fff !important; }
+
+/* subtle border for muted so it doesn't read like other buttons */
+.confident-root .cs-card .btn-muted { box-shadow:none !important; }
+
+/* hover + focus */
+.confident-root .cs-card .btn:hover { transform: translateY(-3px); box-shadow: 0 10px 26px rgba(2,6,23,0.06); }
+.confident-root .cs-card .btn:focus { outline: 3px solid rgba(59,130,246,0.12); outline-offset: 2px; }
+
+/* ---- Responsive rules: keep buttons compact on small screens (no full-width) ---- */
+@media (max-width: 900px) {
+  .confident-root .cs-card .btn { font-size:13px; padding:7px 10px !important; min-width: 64px; }
+  .confident-root .cs-card .take-name { font-size:13px; }
+}
+
+@media (max-width: 520px) {
+  /* keep action groups compact; allow wrap but never force full width on each button */
+  .confident-root .cs-card .cs-actions,
+  .confident-root .cs-card .take-actions,
+  .confident-root .cs-card .mini-controls {
+    gap: 12px; /* increased gap for small screens too (requested) */
+    justify-content: flex-start;
+  }
+
+  /* reduce padding slightly for tiny screens */
+  .confident-root .cs-card .btn { padding:6px 8px !important; font-size:13px; min-width:56px; }
+
+  /* if you want a particular action group to stack vertically on mobile,
+     add `.wrap-actions` to it in JSX. Otherwise we keep buttons compact & wrapped. */
+  .confident-root .cs-card .wrap-actions { flex-wrap:wrap; }
+}
+
+/* ------------- final safety rules ------------- */
+/* Force inline-flex and auto width so no other styles make buttons full width */
+.confident-root .cs-card .btn { display:inline-flex !important; width:auto !important; }
+
+/* small utility: icon-only tiny button (use .btn-icon in JSX) */
+.confident-root .cs-card .btn-icon { padding:6px !important; width:38px; height:38px; }
+
+/* ================================================================================================= */
+/* --------- Feedback section: responsive fixes (paste at end of your CSS) --------- */
+
+/* keep card full width on small screens and reduce internal padding */
+.confident-root .cs-card {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* center feedback heading on mobile */
+.confident-root .cs-card .cs-heading {
+  text-align: center;
+  margin-bottom: 8px;
+  font-size: 18px;
+}
+
+/* compact center score area */
+.confident-root .cs-card .cs-center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-direction: row;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+.confident-root .cs-card .cs-emoji { font-size: 28px; line-height:1; }
+.confident-root .cs-card .cs-bigscore { font-size: 20px; font-weight:700; }
+
+/* slim down progress bar */
+.confident-root .cs-card .cs-bar { height: 10px; border-radius: 8px; background: #eef2f7; overflow: hidden; margin: 8px 0 12px; }
+.confident-root .cs-card .cs-barfill { height: 100%; background: linear-gradient(90deg,#06b6d4,#10b981); border-radius: 8px; }
+
+/* Metrics grid: show horizontally on desktop, stacked on small screens */
+.confident-root .cs-card .cs-grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; align-items: center; margin-bottom: 12px; }
+.confident-root .cs-card .metric { background: transparent; padding: 6px 8px; border-radius: 8px; }
+.confident-root .cs-card .mname { font-size: 13px; color: #374151; }
+.confident-root .cs-card .mval { font-size: 15px; font-weight:600; color: #0f172a; }
+
+/* Pronunciation hints box: increase readability */
+.confident-root .cs-card .pron-diff,
+.confident-root .cs-card .cs-list {
+  padding-left: 18px;
+  margin: 8px 0;
+}
+.confident-root .cs-card .pron-diff li,
+.confident-root .cs-card .cs-list li {
+  margin-bottom: 8px;
+  line-height: 1.45;
+  font-size: 14px;
+  color: #111827;
+}
+
+/* Suggested corrected transcript / bigline box: allow wrapping and keep padding */
+.confident-root .cs-card .bigline {
+  white-space: normal;
+  word-break: break-word;
+  font-size: 15px;
+  padding: 10px;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid rgba(2,6,23,0.04);
+  margin-top: 6px;
+}
+
+/* Hint small text */
+.confident-root .cs-card .cs-hint { font-size: 13px; color: #6b7280; margin-top: 6px; }
+
+/* Take boxes: ensure they wrap on small screens and don't force horizontal scroll */
+.confident-root .cs-card .take { flex-wrap: wrap; gap: 8px; }
+.confident-root .cs-card .take-meta { flex-wrap: wrap; align-items: center; }
+
+/* Make the inner hint card content scrollable if extremely long, but with nice padding */
+.confident-root .cs-card .cs-box .cs-list,
+.confident-root .cs-card .cs-box .pron-diff,
+.confident-root .cs-card .cs-box .bigline {
+  max-height: 260px;
+  overflow: auto;
+  padding-right: 8px;
+}
+
+/* Mobile-first adjustments for very small screens */
+@media (max-width: 640px) {
+  .confident-root .cs-card {
+    padding: 12px;
+  }
+  .confident-root .cs-card .cs-center { flex-direction: column; gap: 6px; }
+  .confident-root .cs-card .cs-emoji { font-size: 32px; }
+  .confident-root .cs-card .cs-bigscore { font-size: 22px; }
+
+  /* stack metrics vertically */
+  .confident-root .cs-card .cs-grid3 { grid-template-columns: 1fr; gap: 8px; }
+
+  /* make hint boxes full width with comfortable padding */
+  .confident-root .cs-card .cs-box { padding: 10px; }
+  .confident-root .cs-card .bigline { padding: 10px; font-size: 15px; }
+
+  /* reduce margins on lists to fit nicely */
+  .confident-root .cs-card .pron-diff li,
+  .confident-root .cs-card .cs-list li {
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
+
+  /* keep back button in view and not too large */
+  .confident-root .back-button, .confident-root .btn-back {
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+}
+
+/* Extra-small screens */
+@media (max-width: 420px) {
+  .confident-root .cs-card { padding: 10px; }
+  .confident-root .cs-card .cs-emoji { font-size: 28px; }
+  .confident-root .cs-card .cs-bigscore { font-size: 20px; }
+  .confident-root .cs-card .bigline { font-size: 14px; }
+  .confident-root .cs-card .cs-hint { font-size: 12px; }
+}
+
+/* ============================================================
+   Final explicit button color mapping (keeps look consistent)
+   ============================================================ */
+
+/* --- Primary action buttons --- */
+.confident-root .btn-primary { background: #0b74ff !important; color: #fff !important; }
+
+/* --- Recorder buttons --- */
+.confident-root .btn-record  { background: #10b981 !important; color: #fff !important; }
+.confident-root .btn-stop    { background: #ef4444 !important; color: #fff !important; }
+
+/* --- Play/pause controls --- */
+.confident-root .btn-play    { background: #0ea5e9 !important; color: #fff !important; }
+.confident-root .btn-pause   { background: #f59e0b !important; color: #fff !important; }
+.confident-root .btn-resume  { background: #7c3aed !important; color: #fff !important; }
+
+/* --- Translate buttons --- */
+.confident-root .btn-translate  { background: #0f766e !important; color: #fff !important; }
+.confident-root .btn-transcribe { background: #0369a1 !important; color: #fff !important; }
+
+/* --- Download & danger actions --- */
+.confident-root .btn-download { background: #059669 !important; color: #fff !important; }
+.confident-root .btn-danger   { background: #dc2626 !important; color: #fff !important; }
+
+/* --- Submit button (Blue) --- */
+.confident-root .btn-submit  { background: #2563eb !important; color: #fff !important; }
+
+/* --- Clear button (neutral gray) --- */
+.confident-root .btn-muted   { background: #e5e7eb !important; color: #111 !important; }
+
+/* --- NEXT & RESET buttons --- */
+.confident-root .btn-next    { background: #0b6623 !important; color: #fff !important; } /* forest green */
+.confident-root .btn-reset   { background: #b91c1c !important; color: #fff !important; } /* deep red */
+
+/* --- Minor tweaks for consistent look --- */
+.confident-root .btn {
+  border-radius: 10px !important;
+  font-weight: 500;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+  transition: all 0.15s ease-in-out;
+}
+.confident-root .btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}

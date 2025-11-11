@@ -124,3 +124,60 @@
   -moz-box-sizing: border-box;
   box-sizing: border-box;
 }
+/* ---------- Thank-you Modal ---------- */
+.thankyou-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.thankyou-modal {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.25);
+  width: 90%;
+  max-width: 480px;
+  padding: 20px;
+  text-align: center;
+  animation: fadeIn 0.3s ease;
+}
+
+.thankyou-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.thankyou-header h3 {
+  margin: 0;
+  color: #065f46;
+  font-size: 18px;
+}
+
+.btn-close {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #6b7280;
+}
+
+.thankyou-body p {
+  font-size: 15px;
+  color: #1f2937;
+  margin: 10px 0;
+}
+
+.thankyou-actions {
+  margin-top: 18px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

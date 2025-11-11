@@ -10,6 +10,27 @@ const PLACEHOLDER_SVG =
     `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="100%" height="100%" fill="#f8fafc"/><g fill="#cbd5e1" font-family="Arial,Helvetica,sans-serif" font-size="18"><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle">No image</text></g></svg>`
   );
 
+// ---------- Thank-you modal (minimal, self-contained) ----------
+function ThankYouModal({ open, onClose }) {
+  if (!open) return null;
+  return (
+    <div className="thankyou-modal-overlay" role="dialog" aria-modal="true">
+      <div className="thankyou-modal">
+        <div className="thankyou-header">
+          <h3>✅ Thank you for choosing us!</h3>
+          <button className="btn-close" onClick={onClose} aria-label="Close">✕</button>
+        </div>
+        <div className="thankyou-body">
+          <p>We’ve received your order. It will be shipped to your address soon. You’ll get an update once it’s on the way!</p>
+        </div>
+        <div className="thankyou-actions">
+          <button className="btn primary" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ReceiveSection({ setMe }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,6 +40,9 @@ export default function ReceiveSection({ setMe }) {
   const [reqTitle, setReqTitle] = useState("");
   const [reqDesc, setReqDesc] = useState("");
   const [reqCategory, setReqCategory] = useState("");
+
+  // Thank-you modal state (added, no other behaviour changed)
+  const [thankOpen, setThankOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -45,7 +69,7 @@ export default function ReceiveSection({ setMe }) {
     return `${API_BASE}${encodeURI(u)}`;
   };
 
-  // claim and then show simple success toast
+  // claim and then show simple success toast + modal
   async function handleClaim(item) {
     try {
       const { data } = await axios.post(
@@ -63,6 +87,9 @@ export default function ReceiveSection({ setMe }) {
         data?.message ||
           "Thank you for choosing us! We’ve received your order."
       );
+
+      // show the inline thank-you modal (no downloads)
+      setThankOpen(true);
     } catch (err) {
       console.error("Claim failed", err);
       toast.error("⚠️ Could not claim item");
@@ -204,7 +231,7 @@ export default function ReceiveSection({ setMe }) {
             onChange={(e) => setReqCategory(e.target.value)}
           />
           <div className="form-actions">
-            <button className="btn primary" type="submit">
+            <button className="btn primary" type="submit" style = {{marginRight:"3px"}}>
               Submit Request
             </button>
             <button
@@ -221,6 +248,9 @@ export default function ReceiveSection({ setMe }) {
           </div>
         </form>
       </div>
+
+      {/* Include Thank-you modal only — nothing else in your component changed */}
+      <ThankYouModal open={thankOpen} onClose={() => setThankOpen(false)} />
     </div>
   );
 }
