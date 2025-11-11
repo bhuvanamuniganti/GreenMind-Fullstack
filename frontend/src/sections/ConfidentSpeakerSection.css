@@ -318,3 +318,58 @@
   transform: translateY(-2px);
   box-shadow: 0 6px 12px rgba(0,0,0,0.15);
 }
+/* ---------------------------------------------------------------------
+   Make transcript / translated textareas full-width and avoid overflow
+   Place this at the very end of ConfidentSpeakerSection.css
+   --------------------------------------------------------------------- */
+
+.confident-root .cs-card,
+.confident-root .cs-card .cs-box {
+  /* Ensure children can grow and use the card width */
+  width: 100%;
+  box-sizing: border-box;
+  overflow: visible; /* allow children to size without hidden cut-off */
+}
+
+/* Primary rule: textareas must fill the container (respect padding) */
+.confident-root .cs-textarea {
+  display: block;
+  width: 100% !important;      /* fill parent width */
+  max-width: 100% !important;  /* never exceed card width */
+  box-sizing: border-box;      /* include padding/border in width */
+  padding: 10px 12px;
+  resize: vertical;            /* allow vertical resize only */
+  min-height: 88px;            /* sensible default for transcript */
+  font-size: 15px;
+  line-height: 1.4;
+  border: 1px solid rgba(2,6,23,0.06);
+  border-radius: 8px;
+  background: #fff;
+  white-space: normal;         /* avoid nowrap from any higher specificity rule */
+  overflow-wrap: break-word;
+}
+
+/* Make sure action rows (buttons) don't force horizontal overflow */
+.confident-root .cs-card .cs-row,
+.confident-root .cs-card .cs-actions,
+.confident-root .cs-card .take-actions,
+.confident-root .cs-card .mini-controls,
+.confident-root .cs-card .form-actions {
+  flex-wrap: wrap;
+  gap: 12px;
+  box-sizing: border-box;
+}
+
+/* Safety: make bigline / content boxes respect width */
+.confident-root .cs-card .bigline,
+.confident-root .cs-card .cs-box .cs-list,
+.confident-root .cs-card .cs-box .pron-diff {
+  max-width: 100%;
+  box-sizing: border-box;
+  word-break: break-word;
+}
+
+/* Small-screen tweak: ensure comfortable padding while still full-width */
+@media (max-width: 520px) {
+  .confident-root .cs-textarea { min-height: 80px; font-size: 14px; padding: 8px 10px; }
+}
