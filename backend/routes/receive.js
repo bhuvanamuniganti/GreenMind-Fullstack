@@ -46,7 +46,7 @@ router.get("/receive", auth, (req, res) => {
   const BASE = process.env.PUBLIC_BASE_URL || ""; // e.g. https://api.yourdomain.com
   const rows = rowsRaw.map(r => ({
     ...r,
-    imageUrl: `${BASE}/uploads/${encodeURIComponent(r.filename)}`,
+    imageUrl: `/uploads/${encodeURIComponent(r.filename)}`,
   }));
 
   res.json(rows);
