@@ -132,7 +132,7 @@ function MiniRecorder({ onStop, onStart, disabled, showWaveform = true }) {
   );
 }
 
-/* ----------------- TopicView: top-level, memoized component ----------------- */
+/* ----------------- TopicView ----------------- */
 const TopicView = React.memo(function TopicView({
   topic, setTopic, level, setLevel, suggestions, loading, buildGuidance,
 }) {
@@ -140,11 +140,9 @@ const TopicView = React.memo(function TopicView({
   const valueRef = useRef(topic);
   const debounceRef = useRef(null);
 
-  // single effect that keeps input in sync but doesn't clobber while typing
   useEffect(() => {
     const node = inputRef.current;
     if (!node) return;
-    // if user is actively typing, don't overwrite their cursor/value
     if (document.activeElement === node) return;
     node.value = topic || "";
     valueRef.current = topic || "";
@@ -225,7 +223,6 @@ export default function ConfidentSpeakerSection() {
   const [suggestions, setSuggestions] = useState([]);
   const [guidance, setGuidance] = useState(null);
 
-  // recordingBlobs: each item -> { id, blob, url, name, createdAt, transcribed: bool, transcriptText?: string }
   const [recordingBlobs, setRecordingBlobs] = useState([]);
   const [transcript, setTranscript] = useState("");
   const [translated, setTranslated] = useState("");
@@ -242,14 +239,17 @@ export default function ConfidentSpeakerSection() {
   const audioRef = useRef(null);
   const utterRef = useRef(null);
   const voicesRef = useRef([]);
-  // removed unused 'voicesLoaded' variable to fix eslint warning
-  const [, setIsPlaying] = useState(false); // we only need the setter in TTS functions
+  const [, setIsPlaying] = useState(false);
 
   useEffect(() => {
     async function fetchSuggestions() {
       try {
         setLoading(true);
-        const r = await fetch(`${API_BASE}/api/speaking/guidance`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ topic: "", level: "basic" }) });
+        const r = await fetch(`${API_BASE}/api/speaking/guidance`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ topic: "", level: "basic" }),
+        });
         const data = await r.json();
         if (Array.isArray(data.suggestions)) setSuggestions(data.suggestions);
       } catch (e) {
@@ -257,11 +257,11 @@ export default function ConfidentSpeakerSection() {
         setSuggestions(["Helping at home", "My best friend", "A happy memory", "How I save water", "My favourite food"]);
       } finally { setLoading(false); }
     }
+
     fetchSuggestions();
 
     function loadVoices() {
       voicesRef.current = window.speechSynthesis?.getVoices() || [];
-      // don't keep a voicesLoaded state unless UI needs it (avoids eslint unused var)
     }
     if ("speechSynthesis" in window) { loadVoices(); window.speechSynthesis.onvoiceschanged = loadVoices; }
     return () => { if ("speechSynthesis" in window) window.speechSynthesis.onvoiceschanged = null; };
@@ -271,7 +271,11 @@ export default function ConfidentSpeakerSection() {
     const body = { topic: selectedTopic || topic, level };
     setLoading(true);
     try {
-      const r = await fetch(`${API_BASE}/api/speaking/guidance`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const r = await fetch(`${API_BASE}/api/speaking/guidance`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
       const data = await r.json();
       setTopic(data.topic || body.topic);
       setGuidance(data.guidance || null);
@@ -279,7 +283,11 @@ export default function ConfidentSpeakerSection() {
       setStage("guide");
 
       try {
-        const ex = await fetch(`${API_BASE}/api/speaking/example`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ topic: data.topic || body.topic, level }) });
+        const ex = await fetch(`${API_BASE}/api/speaking/example`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ topic: data.topic || body.topic, level }),
+        });
         if (ex.ok) {
           const ed = await ex.json();
           if (ed?.exampleText) setExampleText(ed.exampleText);
@@ -288,11 +296,18 @@ export default function ConfidentSpeakerSection() {
         } else {
           setExampleText(data.guidance?.modelLine || `I will talk about ${body.topic}`);
         }
-      } catch (err) { console.warn("example fetch failed", err); setExampleText(data.guidance?.modelLine || `I will talk about ${body.topic}`); }
-    } catch (e) { console.error(e); alert("Could not create guidance. Try again."); } finally { setLoading(false); }
+      } catch (err) {
+        console.warn("example fetch failed", err);
+        setExampleText(data.guidance?.modelLine || `I will talk about ${body.topic}`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Could not create guidance. Try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
-  /* ---------------- New: transcribe helper that accepts a Blob directly ---------------- */
   async function transcribeBlob(blob, name, itemId = null) {
     const form = new FormData();
     form.append("audio", new File([blob], name, { type: blob.type || "audio/webm" }));
@@ -349,72 +364,90 @@ export default function ConfidentSpeakerSection() {
     }
   }
 
+  // ✅ UPDATED: send parentLang also
   async function getScore() {
     const referenceText = guidance?.modelLine || `I will talk about ${topic}`;
     if (!transcript) return alert("Please transcribe or edit transcript before submitting.");
     setLoading(true);
     try {
-      const r = await fetch(`${API_BASE}/api/speaking/score`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ referenceText, transcript }) });
+      const r = await fetch(`${API_BASE}/api/speaking/score`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ referenceText, transcript, parentLang }),
+      });
       const data = await r.json();
       setScore(data.score);
       setBreakdown(data.breakdown);
 
       try {
-        const cr = await fetch(`${API_BASE}/api/speaking/correct`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ referenceText, transcript }) });
-        if (cr.ok) { const cd = await cr.json(); setCorrectionData(cd || null); if (cd?.corrected) setTranslated(cd.corrected); } else { setCorrectionData(null); }
-      } catch (err) { console.warn("correction fetch failed", err); setCorrectionData(null); }
+        const cr = await fetch(`${API_BASE}/api/speaking/correct`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ referenceText, transcript, parentLang }),
+        });
+        if (cr.ok) {
+          const cd = await cr.json();
+          setCorrectionData(cd || null);
+          if (cd?.corrected) setTranslated(cd.corrected);
+        } else {
+          setCorrectionData(null);
+        }
+      } catch (err) {
+        console.warn("correction fetch failed", err);
+        setCorrectionData(null);
+      }
 
       setStage("feedback");
-    } catch (e) { console.error(e); alert("Scoring failed"); } finally { setLoading(false); }
+    } catch (e) {
+      console.error(e);
+      alert("Scoring failed");
+    } finally {
+      setLoading(false);
+    }
   }
 
-   async function translateForParent() {
-  if (!transcript) return alert("Transcribe first.");
-  setLoading(true);
-  try {
-    // map common codes to friendly names (backend prompt prefers language names)
-    const langMap = { hi: "Hindi", ta: "Tamil", te: "Telugu", en: "English", bn: "Bengali" };
-    const to = langMap[parentLang] || parentLang || "Hindi";
+  async function translateForParent() {
+    if (!transcript) return alert("Transcribe first.");
+    setLoading(true);
+    try {
+      const langMap = { hi: "Hindi", ta: "Tamil", te: "Telugu", en: "English", bn: "Bengali", ml: "Malayalam" };
+      const to = langMap[parentLang] || parentLang || "Hindi";
 
-    // frontend
-const r = await fetch(`${API_BASE}/api/speaking/translate/forward`
-, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: transcript, to }),
-    });
+      const r = await fetch(`${API_BASE}/api/speaking/translate/forward`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: transcript, to }),
+      });
 
-    // always attempt to read text if json fails
-    let data = null;
-    try { data = await r.json(); } catch (e) {
-      const txt = await r.text().catch(()=>null);
-      data = txt ? { translated: txt } : null;
+      let data = null;
+      try { data = await r.json(); } catch (e) {
+        const txt = await r.text().catch(()=>null);
+        data = txt ? { translated: txt } : null;
+      }
+
+      if (!r.ok) {
+        const serverMsg = data && (data.error || data.detail || data.translated)
+          ? (data.error || data.detail || data.translated)
+          : `status ${r.status}`;
+        console.error("translateForParent failed:", r.status, data);
+        alert(`Translation failed. ${serverMsg}`);
+        return;
+      }
+
+      if (!data || typeof data.translated !== "string") {
+        console.error("translateForParent: unexpected response", data);
+        alert("Translation failed: provider returned unexpected response. See console for details.");
+        return;
+      }
+
+      setTranslated(data.translated);
+    } catch (e) {
+      console.error("translateForParent error:", e);
+      alert("Translation failed. Network or server error - see console.");
+    } finally {
+      setLoading(false);
     }
-
-    if (!r.ok) {
-      const serverMsg = data && (data.error || data.detail || data.translated) ? (data.error || data.detail || data.translated) : `status ${r.status}`;
-      console.error("translateForParent failed:", r.status, data);
-      alert(`Translation failed. ${serverMsg}`);
-      return;
-    }
-
-    if (!data || typeof data.translated !== "string") {
-      console.error("translateForParent: unexpected response", data);
-      alert("Translation failed: provider returned unexpected response. See console for details.");
-      return;
-    }
-
-    setTranslated(data.translated);
-  } catch (e) {
-    console.error("translateForParent error:", e);
-    alert("Translation failed. Network or server error - see console.");
-  } finally {
-    setLoading(false);
   }
-}
-
-
-
 
   function playBlob(url) {
     try {
@@ -429,8 +462,15 @@ const r = await fetch(`${API_BASE}/api/speaking/translate/forward`
     a.play().catch(e => console.error(e));
     setIsPlaying(true);
   }
+
   function downloadTake(b) { downloadBlob(b.blob, b.name); }
-  function deleteTake(id) { setRecordingBlobs(prev => { const found = prev.find(p => p.id === id); if (found) try { URL.revokeObjectURL(found.url); } catch {} return prev.filter(p => p.id !== id); }); }
+  function deleteTake(id) {
+    setRecordingBlobs(prev => {
+      const found = prev.find(p => p.id === id);
+      if (found) try { URL.revokeObjectURL(found.url); } catch {}
+      return prev.filter(p => p.id !== id);
+    });
+  }
 
   function stopAllTts() {
     try { if ("speechSynthesis" in window) window.speechSynthesis.cancel(); } catch {}
@@ -438,6 +478,7 @@ const r = await fetch(`${API_BASE}/api/speaking/translate/forward`
     if (utterRef.current) { utterRef.current = null; }
     setIsPlaying(false);
   }
+
   function playTextBrowser(text, { pitch = 1.2, rate = 1, lang = "en-IN" } = {}) {
     if (!("speechSynthesis" in window)) return false;
     try {
@@ -461,6 +502,7 @@ const r = await fetch(`${API_BASE}/api/speaking/translate/forward`
       return false;
     }
   }
+
   async function playTextServer(text, { lang = "en-IN", pitch = 1 } = {}) {
     try {
       stopAllTts();
@@ -486,11 +528,13 @@ const r = await fetch(`${API_BASE}/api/speaking/translate/forward`
       return false;
     }
   }
+
   async function playExampleWithPitch(text, opts = { pitch: 1.2, rate: 0.95, lang: "en-IN" }) {
     if (!text) return;
     const ok = playTextBrowser(text, opts);
     if (!ok) await playTextServer(text, { lang: opts.lang, pitch: opts.pitch });
   }
+
   function pauseExample() {
     try {
       if ("speechSynthesis" in window && window.speechSynthesis.speaking) {
@@ -504,6 +548,7 @@ const r = await fetch(`${API_BASE}/api/speaking/translate/forward`
       }
     } catch (e) { console.warn(e); }
   }
+
   function resumeExample() {
     try {
       if ("speechSynthesis" in window && window.speechSynthesis.paused) {
@@ -512,11 +557,12 @@ const r = await fetch(`${API_BASE}/api/speaking/translate/forward`
         return;
       }
       if (audioRef.current && audioRef.current.paused) {
-        audioRef.current.play().catch(()=>{}); 
+        audioRef.current.play().catch(()=>{});
         setIsPlaying(true);
       }
     } catch (e) { console.warn(e); }
   }
+
   function stopExample() {
     try {
       if ("speechSynthesis" in window) window.speechSynthesis.cancel();
@@ -532,11 +578,10 @@ const r = await fetch(`${API_BASE}/api/speaking/translate/forward`
     return (
       <section className="cs-card">
         <h2 className="cs-heading">Get ready</h2>
-        <div className="cs-kv" style = {{fontWeight:"bold"}}>Topic: {topic}</div>
+        <div className="cs-kv" style={{fontWeight:"bold"}}>Topic: {topic}</div>
         <p></p>
         <div className="cs-box">
           <div className="label">Model opening</div>
-
           <div className="bigline">{opener}</div>
 
           <div className="example-controls">
@@ -554,12 +599,12 @@ const r = await fetch(`${API_BASE}/api/speaking/translate/forward`
               />
             </div>
             <div className="right">
-              <button className="btn btn-play" 
-              onClick={() => playExampleWithPitch(opener, { pitch: examplePitch, rate: exampleRate, lang: "en-IN" })}
-              style = {{marginRight: "3px"}}
+              <button className="btn btn-play"
+                onClick={() => playExampleWithPitch(opener, { pitch: examplePitch, rate: exampleRate, lang: "en-IN" })}
+                style={{marginRight:"3px"}}
               >▶ Play</button>
-              <button className="btn btn-pause" onClick={pauseExample}  style = {{marginRight: "3px"}}>⏸ Pause</button>
-              <button className="btn btn-resume" onClick={resumeExample}  style = {{marginRight: "3px"}}>▶ Resume</button>
+              <button className="btn btn-pause" onClick={pauseExample} style={{marginRight:"3px"}}>⏸ Pause</button>
+              <button className="btn btn-resume" onClick={resumeExample} style={{marginRight:"3px"}}>▶ Resume</button>
               <button className="btn btn-stop" onClick={stopExample}>⏹ Stop</button>
             </div>
           </div>
@@ -604,17 +649,12 @@ const r = await fetch(`${API_BASE}/api/speaking/translate/forward`
                   <div className="take-name">{t.name}</div>
                   <div className="take-actions">
                     <button className="btn btn-play" onClick={() => playBlob(t.url)}>▶ Play</button>
-
-                    {/* Transcribe button is shown only if this take isn't already auto-transcribed */}
                     {!t.transcribed && (
                       <button className="btn btn-transcribe" onClick={() => doTranscribe(t.id)}>📝 Transcribe</button>
                     )}
-
-                    {/* If transcribed, show a small badge */}
                     {t.transcribed && (
                       <button className="btn btn-muted" disabled title="Auto-transcribed">✓ Transcribed</button>
                     )}
-
                     <button className="btn btn-download" onClick={() => downloadTake(t)}>⬇️</button>
                     <button className="btn btn-danger" onClick={() => deleteTake(t.id)}>🗑</button>
                   </div>
@@ -629,11 +669,11 @@ const r = await fetch(`${API_BASE}/api/speaking/translate/forward`
           <textarea className="cs-textarea" rows={4} value={transcript} onChange={(e)=>setTranscript(e.target.value)} />
           <div className="cs-row" style={{ justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ display: "flex", gap: 8 }}>
-              <button className="btn btn-primary" disabled={!transcript || loading} 
-              onClick={getScore}>{loading ? "Scoring…" : "Submit"}</button>
+              <button className="btn btn-primary" disabled={!transcript || loading}
+                onClick={getScore}>{loading ? "Scoring…" : "Submit"}</button>
               <button className="btn btn-muted" onClick={() => setTranscript("")}>Clear</button>
-              <button className="btn btn-translate" 
-              onClick={translateForParent} disabled={!transcript || loading}>🌐 Translate → Parent</button>
+              <button className="btn btn-translate"
+                onClick={translateForParent} disabled={!transcript || loading}>🌐 Translate → Parent</button>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <label className="small-label">Parent language</label>
@@ -643,7 +683,7 @@ const r = await fetch(`${API_BASE}/api/speaking/translate/forward`
                 <option value="te">Telugu (te)</option>
                 <option value="en">English (en)</option>
                 <option value="bn">Bengali (bn)</option>
-                <option value= "ml">Malayali (ml) </option>
+                <option value="ml">Malayalam (ml)</option>
               </select>
             </div>
           </div>
@@ -653,7 +693,6 @@ const r = await fetch(`${API_BASE}/api/speaking/translate/forward`
           <div className="cs-box">
             <div className="label">Translated to parent language (editable)</div>
             <textarea className="cs-textarea" rows={3} value={translated} onChange={(e)=>setTranslated(e.target.value)} />
-            
           </div>
         ) : null}
       </section>
