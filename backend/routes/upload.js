@@ -6,9 +6,17 @@ const jwt = require("jsonwebtoken");
 const pdfParse = require("pdf-parse");
 const db = require("../db");
 const OpenAI = require("openai");
+const cloudinary = require("cloudinary").v2;
 
 const router = express.Router();
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// ✅ Cloudinary config
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 // --- Auth middleware ---
 function auth(req, res, next) {
@@ -22,8 +30,8 @@ function auth(req, res, next) {
   }
 }
 
-// --- File storage config (supports persistent disk) ---
-const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, "..", "uploads");
+// --- TEMP File storage (only to read & upload to Cloudinary) ---
+const UPLOADS_DIR = path.join(__dirname, "..", "uploads");
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 const storage = multer.diskStorage({
@@ -51,6 +59,7 @@ const upload = multer({
 // --- Helpers ---
 async function ocrImageToText(absPath) {
   const b64 = fs.readFileSync(absPath, { encoding: "base64" });
+
   const resp = await client.chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
@@ -68,19 +77,15 @@ async function ocrImageToText(absPath) {
       },
     ],
   });
-  return (resp.choices[0].message.content || "").trim();
-}
 
-async function extractPdfText(absPath) {
-  const dataBuffer = fs.readFileSync(absPath);
-  const parsed = await pdfParse(dataBuffer);
-  return (parsed.text || "").trim();
+  return (resp.choices[0].message.content || "").trim();
 }
 
 // STRICT title extractor (vision)
 async function extractExactTitleFromImage(absPath) {
   try {
     const b64 = fs.readFileSync(absPath, { encoding: "base64" });
+
     const resp = await client.chat.completions.create({
       model: "gpt-4o-mini",
       temperature: 0,
@@ -101,6 +106,7 @@ async function extractExactTitleFromImage(absPath) {
         },
       ],
     });
+
     const data = JSON.parse(resp.choices[0].message.content || "{}");
     return (data.title || "").trim();
   } catch {
@@ -127,7 +133,7 @@ async function generateMetadataFromText(text) {
   let json;
   try {
     json = JSON.parse(resp.choices[0].message.content);
-  } catch (e) {
+  } catch {
     const raw = resp.choices[0].message.content || "{}";
     json = JSON.parse(raw.replace(/```json|```/g, ""));
   }
@@ -146,6 +152,7 @@ async function classifyEducationalWithModel({ title, category, description, extr
     const promptSystem =
       `You are a strict classifier. Answer JSON: {"isEducational": boolean, "reason": string}. ` +
       `True only for clear study resources.`;
+
     const userContent =
       `title: ${title || ""}\ncategory: ${category || ""}\n` +
       `description: ${description || ""}\n\n` +
@@ -163,31 +170,37 @@ async function classifyEducationalWithModel({ title, category, description, extr
 
     const raw = resp.choices[0].message.content;
     let json;
-    try { json = typeof raw === "object" ? raw : JSON.parse(raw); }
-    catch { return { ok: null, reason: "non_json_response", modelResult: raw }; }
+    try {
+      json = typeof raw === "object" ? raw : JSON.parse(raw);
+    } catch {
+      return { ok: null, reason: "non_json_response", modelResult: raw };
+    }
 
     if (typeof json.isEducational === "boolean") {
       return { ok: json.isEducational, reason: json.reason || "", modelResult: json };
     }
+
     return { ok: null, reason: "unexpected_format", modelResult: json };
   } catch (err) {
     return { ok: null, reason: "classifier_error", error: err?.message || String(err) };
   }
 }
 
-// --- AI-powered Upload Route ---
+// --- AI-powered Upload Route (Cloudinary) ---
 router.post("/upload", auth, upload.single("image"), async (req, res) => {
+  let absPath = null;
+
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
     const filename = req.file.filename;
-    const imageUrl = `/uploads/${filename}`;
-    const absPath = path.join(UPLOADS_DIR, filename);
+    absPath = path.join(UPLOADS_DIR, filename);
     const mime = req.file.mimetype;
 
-    // 1) Extract text
+    // ✅ 1) Extract text FIRST (OCR or PDF parse)
     let extractedText = "";
     let pdfInfoTitle = "";
+
     if (mime.startsWith("image/")) {
       extractedText = await ocrImageToText(absPath);
     } else if (mime === "application/pdf") {
@@ -197,25 +210,29 @@ router.post("/upload", auth, upload.single("image"), async (req, res) => {
       pdfInfoTitle = parsed?.info?.Title ? String(parsed.info.Title).trim() : "";
     }
 
-    // 2) AI metadata
+    // ✅ 2) Generate metadata from extracted text
     const details = await generateMetadataFromText(extractedText || "");
+
     if (details.quality && details.quality.toLowerCase() === "low") {
       try { if (fs.existsSync(absPath)) fs.unlinkSync(absPath); } catch {}
       return res.status(400).json({ error: "Low quality", reason: "low_quality" });
     }
 
-    // 3) Exact title picking
+    // ✅ 3) Pick exact title
     let finalTitle = (details.title_exact_from_text || "").trim();
+
     if (!finalTitle && pdfInfoTitle) finalTitle = pdfInfoTitle;
+
     if (!finalTitle && mime.startsWith("image/")) {
       const fromImage = await extractExactTitleFromImage(absPath);
       if (fromImage) finalTitle = fromImage;
     }
+
     if (!finalTitle || finalTitle.length < 3 || finalTitle.length > 120) {
       finalTitle = (details.title || "Untitled Resource").trim();
     }
 
-    // 4) Classify
+    // ✅ 4) Classify educational
     const classifier = await classifyEducationalWithModel({
       title: finalTitle,
       category: details.category,
@@ -226,37 +243,57 @@ router.post("/upload", auth, upload.single("image"), async (req, res) => {
     if (classifier.ok !== true) {
       try { if (fs.existsSync(absPath)) fs.unlinkSync(absPath); } catch {}
       return res.status(400).json({
-        error: classifier.ok === false
-          ? "Uploaded image is not recognized as an educational item."
-          : "Classifier failure or ambiguous result.",
-        reason: classifier.reason || (classifier.modelResult && JSON.stringify(classifier.modelResult)) || "classifier_error",
+        error:
+          classifier.ok === false
+            ? "Uploaded image is not recognized as an educational item."
+            : "Classifier failure or ambiguous result.",
+        reason:
+          classifier.reason ||
+          (classifier.modelResult && JSON.stringify(classifier.modelResult)) ||
+          "classifier_error",
       });
     }
 
-    // 5) Save to DB
-    const now = new Date().toISOString();
-    const info = db.prepare(
-      `INSERT INTO uploads (user_id, filename, title, category, description, quality, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
-    ).run(
-      req.user.sub,
-      filename,
-      finalTitle,
-      details.category,
-      details.description,
-      details.quality,
-      now
-    );
+    // ✅ 5) Upload to Cloudinary AFTER processing
+    const cloudResult = await cloudinary.uploader.upload(absPath, {
+      folder: "greenmind_uploads",
+      resource_type: "auto",
+    });
 
-    // 6) Award points
+    const imageUrl = cloudResult.secure_url;
+
+    // ✅ 6) Delete local file AFTER cloud upload ✅ (this is the correction)
+    try {
+      if (fs.existsSync(absPath)) fs.unlinkSync(absPath);
+    } catch {}
+
+    // ✅ 7) Save in DB (store Cloudinary URL in filename column)
+    const now = new Date().toISOString();
+
+    const info = db
+      .prepare(
+        `INSERT INTO uploads (user_id, filename, title, category, description, quality, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        req.user.sub,
+        imageUrl, // ✅ Cloudinary URL saved here
+        finalTitle,
+        details.category,
+        details.description,
+        details.quality,
+        now
+      );
+
+    // ✅ 8) Award points
     db.prepare("UPDATE users SET points = points + 10 WHERE id = ?").run(req.user.sub);
 
-    // 7) Respond
+    // ✅ 9) Respond
     res.json({
       success: true,
       id: info.lastInsertRowid,
-      filename,
-      imageUrl, // relative path; your receive route will prefix with PUBLIC_BASE_URL
+      filename: imageUrl,
+      imageUrl, // ✅ cloudinary link
       title: finalTitle,
       category: details.category,
       description: details.description,
@@ -266,6 +303,13 @@ router.post("/upload", auth, upload.single("image"), async (req, res) => {
   } catch (err) {
     console.error("❌ Upload AI error:", err);
     res.status(500).json({ error: err.message || "Upload failed" });
+  } finally {
+    // Extra safety cleanup
+    if (absPath) {
+      try {
+        if (fs.existsSync(absPath)) fs.unlinkSync(absPath);
+      } catch {}
+    }
   }
 });
 

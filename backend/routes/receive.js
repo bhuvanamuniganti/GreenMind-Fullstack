@@ -43,10 +43,10 @@ router.get("/receive", auth, (req, res) => {
     )
     .all(req.user.sub);
 
-  const BASE = process.env.PUBLIC_BASE_URL || ""; // e.g. https://api.yourdomain.com
-  const rows = rowsRaw.map(r => ({
+  // ✅ filename now stores Cloudinary URL (full public URL)
+  const rows = rowsRaw.map((r) => ({
     ...r,
-    imageUrl: `/uploads/${encodeURIComponent(r.filename)}`,
+    imageUrl: r.filename,   // ✅ direct cloudinary url
   }));
 
   res.json(rows);
