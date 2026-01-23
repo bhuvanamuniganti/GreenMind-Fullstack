@@ -10,6 +10,12 @@ const PLACEHOLDER_SVG =
     `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="100%" height="100%" fill="#f8fafc"/><g fill="#cbd5e1" font-family="Arial,Helvetica,sans-serif" font-size="18"><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle">No image</text></g></svg>`
   );
 
+// ✅ Mobile safe auth headers
+function getAuthHeaders() {
+  const token = localStorage.getItem("token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 // ---------- Thank-you modal (minimal, self-contained) ----------
 function ThankYouModal({ open, onClose }) {
   if (!open) return null;
@@ -38,23 +44,15 @@ function ThankYouModal({ open, onClose }) {
   );
 }
 
-// ✅ Mobile-safe auth helper (cookie may fail in mobile)
-function getAuthHeaders() {
-  const token = localStorage.getItem("token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
 export default function ReceiveSection({ setMe }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  // Request form state
   const [reqTitle, setReqTitle] = useState("");
   const [reqDesc, setReqDesc] = useState("");
   const [reqCategory, setReqCategory] = useState("");
 
-  // Thank-you modal state (added, no other behaviour changed)
   const [thankOpen, setThankOpen] = useState(false);
 
   useEffect(() => {
@@ -74,16 +72,13 @@ export default function ReceiveSection({ setMe }) {
     })();
   }, []);
 
-  // Build a safe image src:
-  // - if absolute (http/https), use as-is
-  // - if relative (/uploads/...), prefix with API_BASE
+  // ✅ Safe image src
   const buildImageSrc = (u) => {
     if (!u) return "";
-    if (/^https?:\/\//i.test(u)) return u; // ✅ Cloudinary URL 그대로 사용
-    return `${API_BASE}${u}`; // ✅ relative path only
+    if (/^https?:\/\//i.test(u)) return u;   // ✅ Cloudinary URL 그대로 사용
+    return `${API_BASE}${u}`;                // ✅ relative path only
   };
 
-  // claim and then show simple success toast + modal
   async function handleClaim(item) {
     try {
       const { data } = await axios.post(
@@ -95,7 +90,6 @@ export default function ReceiveSection({ setMe }) {
         }
       );
 
-      // remove from UI + deduct points
       setItems((prev) => prev.filter((x) => x.id !== item.id));
       if (setMe) setMe((p) => ({ ...p, points: (p.points || 0) - 10 }));
 
@@ -110,7 +104,6 @@ export default function ReceiveSection({ setMe }) {
     }
   }
 
-  // handle request submit
   async function handleRequest(e) {
     e?.preventDefault();
     if (!reqTitle.trim()) {
@@ -156,7 +149,6 @@ export default function ReceiveSection({ setMe }) {
     <div className="receive-container">
       <h2>📥 Receive Items</h2>
 
-      {/* Search bar */}
       <div className="search-bar">
         <input
           type="text"
@@ -169,13 +161,11 @@ export default function ReceiveSection({ setMe }) {
         </button>
       </div>
 
-      {/* Items grid */}
       <div className="cards-grid">
         {filtered.map((item) => {
           const mine = !!item.isMine;
           return (
             <div key={item.id} className="card glass horizontal-card">
-              {/* Image left (or top on mobile) */}
               <div className="card-media-small">
                 <img
                   src={buildImageSrc(item.imageUrl)}
@@ -187,7 +177,6 @@ export default function ReceiveSection({ setMe }) {
                 />
               </div>
 
-              {/* Text right */}
               <div className="card-text">
                 <h3>{item.title || "Untitled"}</h3>
                 <p className="desc">{item.description}</p>
@@ -198,7 +187,6 @@ export default function ReceiveSection({ setMe }) {
                   <strong>Quality:</strong> {item.quality || "Good"}
                 </p>
 
-                {/* Single label: either "Your upload" or the uploader name */}
                 <span className="badge">
                   {mine ? "Your upload" : `By ${item.uploader_name}`}
                 </span>
@@ -224,7 +212,6 @@ export default function ReceiveSection({ setMe }) {
         {filtered.length === 0 && <p>No items match your search.</p>}
       </div>
 
-      {/* Request Section */}
       <div className="request-form glass">
         <h3>🙋 Didn’t find what you need? Request an item</h3>
         <form onSubmit={handleRequest}>
@@ -270,7 +257,6 @@ export default function ReceiveSection({ setMe }) {
         </form>
       </div>
 
-      {/* Include Thank-you modal only — nothing else in your component changed */}
       <ThankYouModal open={thankOpen} onClose={() => setThankOpen(false)} />
     </div>
   );

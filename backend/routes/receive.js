@@ -41,16 +41,15 @@ router.get("/receive", auth, (req, res) => {
     )
     .all(req.user.sub);
 
-  // ✅ filename now stores Cloudinary URL (full public URL)
   const rows = rowsRaw.map((r) => ({
     ...r,
-    imageUrl: r.filename, // ✅ direct cloudinary url
+    imageUrl: r.filename || "", // ✅ always safe string
   }));
 
   res.json(rows);
 });
 
-// Claim an item -> DO NOT DELETE (keep uploads safe)
+// ✅ Claim an item -> DO NOT delete, just mark as claimed
 router.post("/receive/claim/:id", auth, (req, res) => {
   const { id } = req.params;
 
@@ -72,7 +71,6 @@ router.post("/receive/claim/:id", auth, (req, res) => {
    AI Helpers for Receive
    ========================= */
 
-// Temp storage for mic audio uploads
 const upload = multer({ dest: path.join(__dirname, "..", "tmp") });
 
 router.post("/ai/search-voice", auth, upload.single("audio"), async (req, res) => {
