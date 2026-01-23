@@ -83,9 +83,15 @@ export default function ReceiveSection({ setMe }) {
 
   const buildImageSrc = (u) => {
   if (!u) return PLACEHOLDER_SVG;
-  if (/^https?:\/\//i.test(u)) return u; // ✅ Cloudinary 그대로
-  return `${API_BASE}${u.startsWith("/") ? u : "/" + u}`; // ✅ safe relative
+
+  // ✅ Cloudinary URL
+  if (/^https?:\/\//i.test(u)) return u;
+
+  // ✅ Old DB images stored as filename only → serve from /uploads/
+  const fixedPath = u.startsWith("/uploads/") ? u : `/uploads/${u}`;
+  return `${API_BASE}${fixedPath}`;
 };
+
 
 
   async function handleClaim(item) {
