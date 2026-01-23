@@ -5,7 +5,7 @@ import { toast } from "react-toastify";
 import "./ReceiveSection.css";
 
 const PLACEHOLDER_SVG =
-  'data:image/svg+xml;utf8,' +
+  "data:image/svg+xml;utf8," +
   encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="100%" height="100%" fill="#f8fafc"/><g fill="#cbd5e1" font-family="Arial,Helvetica,sans-serif" font-size="18"><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle">No image</text></g></svg>`
   );
@@ -18,17 +18,30 @@ function ThankYouModal({ open, onClose }) {
       <div className="thankyou-modal">
         <div className="thankyou-header">
           <h3>✅ Thank you for choosing us!</h3>
-          <button className="btn-close" onClick={onClose} aria-label="Close">✕</button>
+          <button className="btn-close" onClick={onClose} aria-label="Close">
+            ✕
+          </button>
         </div>
         <div className="thankyou-body">
-          <p>We’ve received your order. It will be shipped to your address soon. You’ll get an update once it’s on the way!</p>
+          <p>
+            We’ve received your order. It will be shipped to your address soon.
+            You’ll get an update once it’s on the way!
+          </p>
         </div>
         <div className="thankyou-actions">
-          <button className="btn primary" onClick={onClose}>Close</button>
+          <button className="btn primary" onClick={onClose}>
+            Close
+          </button>
         </div>
       </div>
     </div>
   );
+}
+
+// ✅ Mobile-safe auth helper (cookie may fail in mobile)
+function getAuthHeaders() {
+  const token = localStorage.getItem("token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 export default function ReceiveSection({ setMe }) {
@@ -49,6 +62,7 @@ export default function ReceiveSection({ setMe }) {
       try {
         const res = await axios.get(`${API_BASE}/api/receive`, {
           withCredentials: true,
+          headers: getAuthHeaders(), // ✅ added
         });
         setItems(res.data || []);
       } catch (err) {
@@ -63,18 +77,11 @@ export default function ReceiveSection({ setMe }) {
   // Build a safe image src:
   // - if absolute (http/https), use as-is
   // - if relative (/uploads/...), prefix with API_BASE
- /* const buildImageSrc = (u) => {
-    if (!u) return "";
-    if (/^https?:\/\//i.test(u)) return encodeURI(u);
-    return `${API_BASE}${encodeURI(u)}`;
-  };*/
-
   const buildImageSrc = (u) => {
-  if (!u) return "";
-  if (/^https?:\/\//i.test(u)) return u;     // ✅ Cloudinary URL 그대로 사용
-  return `${API_BASE}${u}`;                  // ✅ relative path only
-};
-
+    if (!u) return "";
+    if (/^https?:\/\//i.test(u)) return u; // ✅ Cloudinary URL 그대로 사용
+    return `${API_BASE}${u}`; // ✅ relative path only
+  };
 
   // claim and then show simple success toast + modal
   async function handleClaim(item) {
@@ -82,20 +89,20 @@ export default function ReceiveSection({ setMe }) {
       const { data } = await axios.post(
         `${API_BASE}/api/receive/claim/${item.id}`,
         {},
-        { withCredentials: true }
+        {
+          withCredentials: true,
+          headers: getAuthHeaders(), // ✅ added
+        }
       );
 
       // remove from UI + deduct points
       setItems((prev) => prev.filter((x) => x.id !== item.id));
       if (setMe) setMe((p) => ({ ...p, points: (p.points || 0) - 10 }));
 
-      // ✅ show simple thank-you (no PDF, no extra calls)
       toast.success(
-        data?.message ||
-          "Thank you for choosing us! We’ve received your order."
+        data?.message || "Thank you for choosing us! We’ve received your order."
       );
 
-      // show the inline thank-you modal (no downloads)
       setThankOpen(true);
     } catch (err) {
       console.error("Claim failed", err);
@@ -118,7 +125,10 @@ export default function ReceiveSection({ setMe }) {
           description: reqDesc.trim(),
           category: reqCategory.trim(),
         },
-        { withCredentials: true }
+        {
+          withCredentials: true,
+          headers: getAuthHeaders(), // ✅ added
+        }
       );
       toast.success("✅ Request submitted!");
       setReqTitle("");
@@ -238,7 +248,11 @@ export default function ReceiveSection({ setMe }) {
             onChange={(e) => setReqCategory(e.target.value)}
           />
           <div className="form-actions">
-            <button className="btn primary" type="submit" style = {{marginRight:"3px"}}>
+            <button
+              className="btn primary"
+              type="submit"
+              style={{ marginRight: "3px" }}
+            >
               Submit Request
             </button>
             <button

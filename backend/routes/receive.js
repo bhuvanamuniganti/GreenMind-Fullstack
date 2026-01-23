@@ -27,8 +27,6 @@ function auth(req, res, next) {
    ========================= */
 
 // List all available uploads (include my own, but mark which are mine) & unclaimed
-// backend/routes/receive.js
-// backend/routes/receive.js
 router.get("/receive", auth, (req, res) => {
   const rowsRaw = db
     .prepare(
@@ -46,16 +44,13 @@ router.get("/receive", auth, (req, res) => {
   // ✅ filename now stores Cloudinary URL (full public URL)
   const rows = rowsRaw.map((r) => ({
     ...r,
-    imageUrl: r.filename,   // ✅ direct cloudinary url
+    imageUrl: r.filename, // ✅ direct cloudinary url
   }));
 
   res.json(rows);
 });
 
-
-
-
-// Claim an item -> HARD DELETE (to prevent overload)
+// Claim an item -> DO NOT DELETE (keep uploads safe)
 router.post("/receive/claim/:id", auth, (req, res) => {
   const { id } = req.params;
 
@@ -64,13 +59,13 @@ router.post("/receive/claim/:id", auth, (req, res) => {
   if (item.user_id === req.user.sub)
     return res.status(400).json({ error: "You cannot claim your own item" });
 
-  // Delete after claim to keep table small
-  db.prepare("DELETE FROM uploads WHERE id = ?").run(id);
+  // ✅ Mark as claimed instead of deleting
+  db.prepare("UPDATE uploads SET claimed_by = ? WHERE id = ?").run(req.user.sub, id);
 
   // Deduct 10 points from claimer
   db.prepare("UPDATE users SET points = points - 10 WHERE id = ?").run(req.user.sub);
 
-  res.json({ ok: true, message: "Item successfully claimed and removed!" });
+  res.json({ ok: true, message: "Item successfully claimed!" });
 });
 
 /* =========================
@@ -80,11 +75,6 @@ router.post("/receive/claim/:id", auth, (req, res) => {
 // Temp storage for mic audio uploads
 const upload = multer({ dest: path.join(__dirname, "..", "tmp") });
 
-/**
- * 🎤 Voice → Text for search (multi-language)
- * - FormData: audio (webm/m4a/wav), optional lang (ISO-639-1). If lang omitted, auto-detect.
- * - Always returns { text: "" } on failure (never hard-crashes UI).
- */
 router.post("/ai/search-voice", auth, upload.single("audio"), async (req, res) => {
   let tmpPath = null;
   try {
@@ -110,11 +100,6 @@ router.post("/ai/search-voice", auth, upload.single("audio"), async (req, res) =
   }
 });
 
-/**
- * 🤖 AI re-rank items by usefulness for a query
- * Body: { query: string, items: [{id,title,description,category,quality}] }
- * Returns: { results: [{id, score, reason, tags: []}, ...] }
- */
 router.post("/receive/ai-rank", auth, async (req, res) => {
   try {
     const { query = "", items = [] } = req.body;
@@ -149,11 +134,6 @@ Items: ${JSON.stringify(items).slice(0, 9000)}
   }
 });
 
-/**
- * 💡 Per-item student-friendly blurb + tags
- * Body: { title, description, category }
- * Returns: { blurb, tags: [] }
- */
 router.post("/receive/why", auth, async (req, res) => {
   try {
     const { title = "", description = "", category = "" } = req.body;
@@ -189,34 +169,29 @@ router.post("/receive/why", auth, async (req, res) => {
   }
 });
 
-// --- AI Thank-you text (with safe fallback)
-// --- Simple Thank-You (no PDF, no AI) ---
 router.post("/receive/thanks", auth, (req, res) => {
-  // Optional values you may send from the client
   const {
     userName = "Friend",
     itemTitle = "your item",
-    address = "",          // optional: show last 4 chars only
-    orderId = "",          // optional: show an order ref on UI
-    etaDays = 3            // optional: estimated delivery
+    address = "",
+    orderId = "",
+    etaDays = 3,
   } = req.body || {};
 
-  // small helper to safely show part of address
-  const maskedAddress = address
-    ? `${address.slice(0, 6)}…${address.slice(-4)}`
-    : "";
+  const maskedAddress = address ? `${address.slice(0, 6)}…${address.slice(-4)}` : "";
 
-  const message = `Thank you for choosing us, ${userName}! We’ve received your order for “${itemTitle}”. It will be delivered to your address soon${etaDays ? ` (ETA ~${etaDays} days)` : ""}.`;
+  const message = `Thank you for choosing us, ${userName}! We’ve received your order for “${itemTitle}”. It will be delivered to your address soon${
+    etaDays ? ` (ETA ~${etaDays} days)` : ""
+  }.`;
 
-  // Return a clean JSON payload the frontend can show in a toast or banner
   return res.json({
     ok: true,
     message,
     details: {
       orderId: orderId || undefined,
       address: maskedAddress || undefined,
-      etaDays
-    }
+      etaDays,
+    },
   });
 });
 
