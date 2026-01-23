@@ -26,8 +26,8 @@ function auth(req, res, next) {
    Core "Receive" Endpoints
    ========================= */
 
-// ✅ List all uploads (NO claimed_by filter)
-// This will show uploads from all devices properly
+// ✅ List all uploads (works across devices)
+// NOTE: if filename is NOT a cloudinary url, send empty string -> UI will show placeholder
 router.get("/receive", auth, (req, res) => {
   const rowsRaw = db
     .prepare(
@@ -41,30 +41,36 @@ router.get("/receive", auth, (req, res) => {
     )
     .all(req.user.sub);
 
-  const rows = rowsRaw.map((r) => ({
-    ...r,
-    imageUrl: r.filename || "",
-  }));
+  const rows = rowsRaw.map((r) => {
+    const file = r.filename || "";
+    return {
+      ...r,
+      // ✅ only allow cloudinary / absolute urls
+      imageUrl: file.startsWith("http") ? file : "",
+    };
+  });
 
   res.json(rows);
 });
 
-// ✅ Claim item (keep old logic: delete after claim)
+// ✅ Claim item -> DO NOT delete from DB (fixes disappearing uploads)
 router.post("/receive/claim/:id", auth, (req, res) => {
   const { id } = req.params;
 
   const item = db.prepare("SELECT * FROM uploads WHERE id = ?").get(id);
   if (!item) return res.status(404).json({ error: "Item not found" });
-  if (item.user_id === req.user.sub)
-    return res.status(400).json({ error: "You cannot claim your own item" });
 
-  // Delete after claim to keep table small
-  db.prepare("DELETE FROM uploads WHERE id = ?").run(id);
+  if (item.user_id === req.user.sub) {
+    return res.status(400).json({ error: "You cannot claim your own item" });
+  }
+
+  // ✅ FIX: mark as claimed instead of deleting (prevents removal for all devices)
+  db.prepare("UPDATE uploads SET claimed_by = ? WHERE id = ?").run(req.user.sub, id);
 
   // Deduct 10 points from claimer
   db.prepare("UPDATE users SET points = points - 10 WHERE id = ?").run(req.user.sub);
 
-  res.json({ ok: true, message: "Item successfully claimed and removed!" });
+  res.json({ ok: true, message: "Item successfully claimed!" });
 });
 
 /* =========================
@@ -79,7 +85,8 @@ router.post("/ai/search-voice", auth, upload.single("audio"), async (req, res) =
     if (!req.file) return res.status(400).json({ text: "" });
     tmpPath = req.file.path;
 
-    const lang = req.body?.lang && req.body.lang !== "auto" ? req.body.lang : undefined;
+    const lang =
+      req.body?.lang && req.body.lang !== "auto" ? req.body.lang : undefined;
 
     const fileStream = fs.createReadStream(tmpPath);
     const t = await client.audio.transcriptions.create({
@@ -176,7 +183,9 @@ router.post("/receive/thanks", auth, (req, res) => {
     etaDays = 3,
   } = req.body || {};
 
-  const maskedAddress = address ? `${address.slice(0, 6)}…${address.slice(-4)}` : "";
+  const maskedAddress = address
+    ? `${address.slice(0, 6)}…${address.slice(-4)}`
+    : "";
 
   const message = `Thank you for choosing us, ${userName}! We’ve received your order for “${itemTitle}”. It will be delivered to your address soon${
     etaDays ? ` (ETA ~${etaDays} days)` : ""
