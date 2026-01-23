@@ -37,21 +37,19 @@ router.get("/receive", auth, (req, res) => {
               (u.user_id = ?) AS isMine
        FROM uploads u
        JOIN users usr ON usr.id = u.user_id
+       WHERE u.claimed_by IS NULL
        ORDER BY u.created_at DESC`
     )
     .all(req.user.sub);
 
-  const rows = rowsRaw.map((r) => {
-    const file = r.filename || "";
-    return {
-      ...r,
-      // ✅ only allow cloudinary / absolute urls
-      imageUrl: file.startsWith("http") ? file : "",
-    };
-  });
+  const rows = rowsRaw.map((r) => ({
+    ...r,
+    imageUrl: r.filename || "",
+  }));
 
   res.json(rows);
 });
+
 
 // ✅ Claim item -> DO NOT delete from DB (fixes disappearing uploads)
 router.post("/receive/claim/:id", auth, (req, res) => {
@@ -59,19 +57,18 @@ router.post("/receive/claim/:id", auth, (req, res) => {
 
   const item = db.prepare("SELECT * FROM uploads WHERE id = ?").get(id);
   if (!item) return res.status(404).json({ error: "Item not found" });
-
-  if (item.user_id === req.user.sub) {
+  if (item.user_id === req.user.sub)
     return res.status(400).json({ error: "You cannot claim your own item" });
-  }
 
-  // ✅ FIX: mark as claimed instead of deleting (prevents removal for all devices)
+  // ✅ mark claimed instead of deleting
   db.prepare("UPDATE uploads SET claimed_by = ? WHERE id = ?").run(req.user.sub, id);
 
-  // Deduct 10 points from claimer
+  // ✅ deduct points
   db.prepare("UPDATE users SET points = points - 10 WHERE id = ?").run(req.user.sub);
 
   res.json({ ok: true, message: "Item successfully claimed!" });
 });
+
 
 /* =========================
    AI Helpers for Receive
