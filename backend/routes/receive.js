@@ -5,7 +5,7 @@ const jwt = require("jsonwebtoken");
 const multer = require("multer");
 const fs = require("fs");
 const path = require("path");
-const OpenAI = require("openai"); // ✅ FIX: missing import
+const OpenAI = require("openai");
 
 const router = express.Router();
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -26,7 +26,8 @@ function auth(req, res, next) {
    Core "Receive" Endpoints
    ========================= */
 
-// List all available uploads (include my own, but mark which are mine) & unclaimed
+// ✅ List all uploads (NO claimed_by filter)
+// This will show uploads from all devices properly
 router.get("/receive", auth, (req, res) => {
   const rowsRaw = db
     .prepare(
@@ -36,20 +37,19 @@ router.get("/receive", auth, (req, res) => {
               (u.user_id = ?) AS isMine
        FROM uploads u
        JOIN users usr ON usr.id = u.user_id
-       WHERE u.claimed_by IS NULL
        ORDER BY u.created_at DESC`
     )
     .all(req.user.sub);
 
   const rows = rowsRaw.map((r) => ({
     ...r,
-    imageUrl: r.filename || "", // ✅ always safe string
+    imageUrl: r.filename || "",
   }));
 
   res.json(rows);
 });
 
-// ✅ Claim an item -> DO NOT delete, just mark as claimed
+// ✅ Claim item (keep old logic: delete after claim)
 router.post("/receive/claim/:id", auth, (req, res) => {
   const { id } = req.params;
 
@@ -58,13 +58,13 @@ router.post("/receive/claim/:id", auth, (req, res) => {
   if (item.user_id === req.user.sub)
     return res.status(400).json({ error: "You cannot claim your own item" });
 
-  // ✅ Mark as claimed instead of deleting
-  db.prepare("UPDATE uploads SET claimed_by = ? WHERE id = ?").run(req.user.sub, id);
+  // Delete after claim to keep table small
+  db.prepare("DELETE FROM uploads WHERE id = ?").run(id);
 
   // Deduct 10 points from claimer
   db.prepare("UPDATE users SET points = points - 10 WHERE id = ?").run(req.user.sub);
 
-  res.json({ ok: true, message: "Item successfully claimed!" });
+  res.json({ ok: true, message: "Item successfully claimed and removed!" });
 });
 
 /* =========================
