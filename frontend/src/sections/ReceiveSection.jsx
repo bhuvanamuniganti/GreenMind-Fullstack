@@ -73,11 +73,20 @@ export default function ReceiveSection({ setMe }) {
   }, []);
 
   // ✅ Safe image src
-  const buildImageSrc = (u) => {
+  /*const buildImageSrc = (u) => {
     if (!u) return "";
     if (/^https?:\/\//i.test(u)) return u;   // ✅ Cloudinary URL 그대로 사용
     return `${API_BASE}${u}`;                // ✅ relative path only
-  };
+  };*/
+
+
+
+  const buildImageSrc = (u) => {
+  if (!u) return PLACEHOLDER_SVG;
+  if (/^https?:\/\//i.test(u)) return u; // ✅ Cloudinary 그대로
+  return `${API_BASE}${u.startsWith("/") ? u : "/" + u}`; // ✅ safe relative
+};
+
 
   async function handleClaim(item) {
     try {
