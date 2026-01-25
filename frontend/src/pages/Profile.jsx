@@ -91,7 +91,7 @@ export default function Profile() {
     return (
       <div className="dashboard-cards">
         {/* ParentTalk card */}
-        <div className="feature-card" onClick={() => setActiveSection("ParentTalk")} role="button">
+        <div className="feature-card" onClick={() => setActiveSection("translator")} role="button">
           <h3 className="card-title">👩‍👦 Assist Your Child</h3>
           <div className="card-hero">
             <img src={PH_PARENT} alt="ParentTalk" onError={(e) => safe(e,"https://via.placeholder.com/800x1200?text=ParentTalk")} />
@@ -174,7 +174,7 @@ export default function Profile() {
   return (
     <div className="profile-grid">
       <aside className="sidebar-desktop">
-        <div className="brand-row"><h2 className="brand">GreenMindAI</h2></div>
+        <div className="brand-row"><h2 className="brand">MatruMarg👩‍👧🤖</h2></div>
         <nav className="left-nav">
           <ul>
             {LEFT_ITEMS.map((item) => (

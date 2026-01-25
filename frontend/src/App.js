@@ -50,7 +50,7 @@ function Header({ openAuth }) {
     <header className="header" role="banner">
       <div className="container header-row">
         <div className="brand" title="GreenMindAI" style={{ marginLeft: 2 }}>
-          GreenMindAI🌳🤖
+          MatruMarg 👩‍👧🤖
         </div>
 
         <nav className="nav" aria-label="Main">
