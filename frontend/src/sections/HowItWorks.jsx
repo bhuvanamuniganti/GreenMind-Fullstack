@@ -1,50 +1,52 @@
 import "./HowItWorks.css";
 
 function HowItWorks() {
-  const FEATURES = [
-    {
-      id: "audio-translate",
-      title: "Translate & Audio (Regional Text + Audiobook)",
-      desc:
-        "Upload an image, PDF or paste text — AI extracts content, translates into Telugu/Hindi/English (or other regional languages), and generates a narrated audiobook personalized to your pace and voice settings.",
-    },
-    {
-      id: "flashcards",
-      title: "Flashcards & Gamified Quizzes",
-      desc:
-        "Auto-generate flashcards and gamified quizzes from images or text to speed up recall. Spaced practice and scoring make revision engaging.",
-    },
-    {
-      id: "ai-learning",
-      title: "Smart AI Learning",
-      desc:
-        "Upload a picture or paste a topic — AI generates MCQs, fill-in-the-blanks, Q&A and similar practice questions that track syllabus changes.",
-    },
-    {
-      id: "math",
-      title: "Math Tutor",
-      desc:
-        "Upload a math problem (image or text) and get clear step-by-step solutions, worked examples and practice questions.",
-    },
-    {
-      id: "practice-image",
-      title: "Practice from Image",
-      desc:
-        "Take practice questions directly from textbook images — written & oral tasks with per-question feedback.",
-    },
-    {
-      id: "upload-reuse",
-      title: "Upload & Reuse Items",
-      desc:
-        "Upload unused educational items. AI checks quality and categorizes them so others can claim locally without paying.",
-    },
-  
-  ];
+ const FEATURES = [
+  {
+    id: "snap-to-explain",
+    title: "Snap-to-Explain (Photo → Step-by-step Support)",
+    desc:
+      "Parents can upload a photo of a lesson or question, and the platform gives a simple explanation so parents can guide their child clearly at home.",
+  },
+  {
+    id: "smart-learning-path",
+    title: "Smart Learning Suggestions",
+    desc:
+      "Helps parents decide what the child should learn next by suggesting suitable topics and resources based on grade and learning level.",
+  },
+  {
+    id: "multi-language-guidance",
+    title: "Guidance in All Indian Languages",
+    desc:
+      "Provides explanations and learning support in any Indian language, so parents can guide their child without language barriers.",
+  },
+  {
+    id: "audiobooks",
+    title: "Audiobooks in Indian Languages",
+    desc:
+      "Turns learning content into audio so children can revise anytime, helping parents improve consistency without extra screen time.",
+  },
+  {
+    id: "math-help",
+    title: "School-Aligned Math Support",
+    desc:
+      "Parents can upload a math problem, and the platform provides step-by-step solutions, examples, and extra practice aligned with school learning.",
+  },
+  {
+    id: "share-claim",
+    title: "Share & Claim Unused Educational Resources",
+    desc:
+      "Parents can upload unused books, notes, and PDFs, and others can claim shared items based on their needs — making learning affordable and dignified.",
+  },
+];
+
+
+
 
   return (
     <section id="how" className="how-section">
       <div className="how-container">
-        <h2 className="how-title">Main Features — How it Works</h2>
+        <h2 className="how-title">Key Features — How Parents Can Guide Their Child</h2>
 
         <div className="how-card-grid">
           {FEATURES.map((f) => (
